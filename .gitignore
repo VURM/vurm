@@ -1,0 +1,7 @@
+# Ignore the assets folder, only use it to keep a local copy of related
+# documents that we don't want to make into the source repository.
+/assets
+
+# Exclude all setuptools generated metadata (the *.egg-info folder is created
+# by the 'python setup.py develop' command).
+*.egg-info
