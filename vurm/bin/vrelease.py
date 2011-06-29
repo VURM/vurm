@@ -1,5 +1,5 @@
 """
-Creates a new virtual cluster and feeds it to SLURM.
+Releases an already existing virtual cluster and all the related resources.
 """
 
 
@@ -20,14 +20,14 @@ def main():
 
     d = factory.getRootObject()
 
-    def gotController(controller, numNodes, minNumNodes=None):
-        return controller.callRemote('createVirtualCluster', numNodes, minNumNodes)
-    d.addCallback(gotController, int(sys.argv[1]))
+    def gotController(controller, clusterName):
+        return controller.callRemote('destroyVirtualCluster', clusterName)
+    d.addCallback(gotController, sys.argv[1])
 
-    def gotName(name):
-        print "You can now submit jobs to the virtual cluster by using the --partition={0!r} option".format(name)
+    def gotResult(_):
+        print "The virtual cluster was correctly destroyed."
         reactor.stop()
-    d.addCallback(gotName)
+    d.addCallback(gotResult)
     
     d.addErrback(log.err)
 

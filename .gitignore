@@ -5,3 +5,10 @@
 # Exclude all setuptools generated metadata (the *.egg-info folder is created
 # by the 'python setup.py develop' command).
 *.egg-info
+
+# Exclude all trial temporary directories created when running tests
+_trial_temp
+
+# The base tests directory contains testing scripts and assets, not needed for
+# unit testing and only providing shortcuts to run code for manual testing.
+/tests
