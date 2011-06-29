@@ -12,3 +12,6 @@ _trial_temp
 # The base tests directory contains testing scripts and assets, not needed for
 # unit testing and only providing shortcuts to run code for manual testing.
 /tests
+
+# Used by automatic virtualenv detection script
+.virtualenv
