@@ -26,29 +26,28 @@ class Logger(object):
     def printFormatted(self, event):
         # {timestamp:%Y-%m-%d %H:%M:%S}
         # 'timestamp': event.get('timestmap', datetime.now()),
-        
+
         indent = ' ' * (15 + len(event['system']))
-        
+
         message = ' '.join(event['message'])
         message = '\n'.join([indent + l for l in message.splitlines()])
         message = message.lstrip()
-        
+
         sys.__stdout__.write('{severity:>10s}: [{system}] {message}\n'.format(**{
-            'severity': logging.getLevelName(event.get('severity', 20)),
+            'severity': logging.getLevelName(event.get('severity', logging.INFO)),
             'system': event['system'],
             'message': message,
         }))
-        
 
-    def addObserver(self, callable):
+
+    def addObserver(self, callable, severity=0):
         def observer(event):
-            name = event.get('name', '')
+            eventName = event.get('name', '')
+            eventSeverity = event.get('severity', logging.WARNING)
             
-            if not name.startswith(self.name):
-                return
-            
-            callable(event)
-        
+            if eventName.startswith(self.name) and eventSeverity >= severity:
+                callable(event)
+
         log.addObserver(observer)
 
     # ------------------------------------------------------------------------
@@ -59,12 +58,12 @@ class Logger(object):
         config = self.config.copy()
         config.update(kwargs)
         config['timestamp'] = datetime.now()
-        
+
         if isinstance(msg, basestring):
             msg = msg.format(*args)
         else:
             msg = unicode(msg)
-        
+
         log.msg(msg, **config)
 
 
@@ -89,7 +88,7 @@ class Logger(object):
         kwargs['severity'] = logging.INFO
         self.log(msg, *args, **kwargs)
 
-    
+
     def warning(self, msg, *args, **kwargs):
         kwargs['severity'] = logging.WARNING
         self.log(msg, *args, **kwargs)

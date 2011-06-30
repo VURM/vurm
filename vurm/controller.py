@@ -5,83 +5,11 @@ VURM controller daemon implementation and support classes
 
 
 import fcntl
-import string
-import random
 
 from twisted.spread import pb
 from twisted.internet import defer, utils, threads
 
-from vurm import logging, resources, error
-
-
-
-class VirtualCluster(object):
-
-
-    clusterNameLength = 7
-
-    clusterNameChars = list(set(string.hexdigits.lower()))
-
-    __clusterNames = set()
-
-    @classmethod
-    def generateClusterName(cls):
-
-        def randomID():
-            return 'vc-' + ''.join(random.choice(cls.clusterNameChars) for x in range(cls.clusterNameLength))
-
-        name = randomID()
-
-        while name in cls.__clusterNames:
-            name = randomID()
-
-        cls.__clusterNames.add(name)
-
-        return name
-
-
-    def __init__(self, nodes):
-        self.name = VirtualCluster.generateClusterName()
-        self.nodes = nodes
-
-        width = len(str(len(nodes)))
-
-        for i, node in enumerate(nodes):
-            name = 'nd-{0}-{1:0{2}d}'.format(self.name[3:], i, width)
-            node.nodeName = name
-
-
-    def getConfigurationEntry(self):
-        width = len(str(len(self.nodes)))
-        nodenames = 'nd-{0}-[{2:0{3}d}-{1}]'.format(self.name[3:],
-                len(self.nodes)-1, 0, width)
-
-        entries = [
-            '# [{0}]'.format(self.name),
-        ] + [
-            n.getConfigurationEntry() for n in self.nodes
-        ] + [
-            'PartitionName={0} Nodes={1} Default=NO MaxTime=INFINITE ' \
-                    'State=UP'.format(self.name, nodenames),
-            '# [/{0}]'.format(self.name),
-        ]
-
-        return '\n'.join(entries) + '\n'
-
-
-    def spawnNodes(self):
-        dl = []
-
-        for node in self.nodes:
-            dl.append(node.spawn())
-
-        return defer.DeferredList(dl).addCallback(lambda _: self)
-
-
-    def terminateNodes(self):
-        d = defer.DeferredList([n.release() for n in self.nodes])
-        d.addCallback(lambda _: self)
-        return d
+from vurm import logging, resources, error, cluster
 
 
 
@@ -92,7 +20,7 @@ class VurmController(pb.Root):
         self.config = configuration
         self.provisioners = provisioners
         self.clusters = {}
-        self.log = logging.Logger(__name__)
+        self.log = logging.Logger(__name__, system='vurmctld')
 
 
     @defer.inlineCallbacks
@@ -116,19 +44,48 @@ class VurmController(pb.Root):
 
         if notify:
             # Reload slurm config file
-            yield utils.getProcessValue('/usr/local/bin/scontrol',
+            res = yield utils.getProcessValue('/usr/local/bin/scontrol',
                     ['reconfigure'])
+
+            if res:
+                raise error.ReconfigurationError('Local slurm instance could ' \
+                        'not be reconfigured')
 
 
     @defer.inlineCallbacks
     def remote_destroyVirtualCluster(self, clusterName):
-        cluster = self.clusters[clusterName]
-        del self.clusters[clusterName]
+        self.log.info('Got a virtual cluster shutdown request for {0!r}',
+                clusterName)
 
-        yield cluster.terminateNodes()
+        try:
+            virtualCluster = self.clusters[clusterName]
+        except KeyError:
+            msg = 'No such cluster: {0!r}'.format(clusterName)
 
-        # Update slurm configuration
-        yield self.updateSlurmConfig(remove=cluster.getConfigurationEntry())
+            self.log.error(msg)
+            raise error.InvalidClusterName(msg)
+        else:
+            del self.clusters[clusterName]
+
+        yield virtualCluster.release()
+
+        self.log.debug('Updating SLURM configuration file and restarting ' \
+                'local daemon')
+
+        try:
+            # Update slurm configuration
+            yield self.updateSlurmConfig(remove=virtualCluster.getConfigEntry())
+        except error.ReconfigurationError:
+            # The slurm controller daemon could not be contacted, it is
+            # probably not running. Let the client deal with that.
+
+            self.log.error('Failed to reconfigure the slurm controller ' \
+                    'daemon, raising to caller')
+
+            raise
+        else:
+            self.log.info('Virtual cluster correctly shut down, returning ' \
+                    'to caller')
 
 
     @defer.inlineCallbacks
@@ -137,7 +94,7 @@ class VurmController(pb.Root):
         if minSize is None:
             minSize = size
 
-        self.log.debug('Got a new virtual cluster request for {0} nodes ' \
+        self.log.info('Got a new virtual cluster request for {0} nodes ' \
                 '(minimum: {1})', size, minSize)
 
         nodes = []
@@ -165,19 +122,45 @@ class VurmController(pb.Root):
 
                 raise error.InsufficientResourcesException('MSG')
 
+        self.log.debug('Waiting for all nodes to come up')
+
         # Wait for all nodes to be ready
         nodes = yield defer.gatherResults(nodes)
 
         # Create virtual cluster
-        cluster = VirtualCluster(nodes)
-        self.clusters[cluster.name] = cluster
+        virtualCluster = cluster.VirtualCluster(nodes)
+        self.clusters[virtualCluster.name] = virtualCluster
 
-        # Update slurm configuration
-        yield self.updateSlurmConfig(add=cluster.getConfigurationEntry())
+        self.log.debug('Updating SLURM configuration file and restarting ' \
+                'local daemon')
+
+        try:
+            # Update slurm configuration
+            yield self.updateSlurmConfig(add=virtualCluster.getConfigEntry())
+        except error.ReconfigurationError:
+            # The slurm controller daemon could not be contacted, it is
+            # probably not running. Let the client deal with that, but free up
+            # the resources requested to the different provisioners before.
+
+            self.log.error('Failed to reconfigure the slurm controller ' \
+                    'daemon, releasing virtual cluster')
+
+            yield virtualCluster.release()
+
+            # Remove the just written configuration, but without notifying the
+            # controller.
+            yield self.updateSlurmConfig(remove=virtualCluster.getConfigEntry(),
+                    notify=False)
+
+            self.log.debug('Virtual cluster shutdown complete, raising to ' \
+                    'caller')
+            raise
 
         # Spawn slurm daemons
-        yield cluster.spawnNodes()
+        yield virtualCluster.spawnNodes()
+
+        self.log.info('Virtual cluster creation complete, returning to caller')
 
         # Return cluster to the caller
-        defer.returnValue(cluster.name)
+        defer.returnValue(virtualCluster.name)
 

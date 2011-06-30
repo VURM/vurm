@@ -18,11 +18,13 @@ def main():
     # Read configuration file
     config = settings.loadConfig()
 
+    debug = config.getboolean('vurmctld', 'debug')
+
     # Configure logging
     # TODO: Log to the file defined in the config file
     log = logging.Logger()
     log.captureStdout()
-    log.addObserver(log.printFormatted)
+    log.addObserver(log.printFormatted, severity=0 if debug else 20)
 
     # Build controller
     ctld = controller.VurmController(config, [
@@ -30,7 +32,7 @@ def main():
     ])
 
     # Publish daemon
-    factory = pb.PBServerFactory(ctld, unsafeTracebacks=True)
+    factory = pb.PBServerFactory(ctld, unsafeTracebacks=debug)
 
     endpoint = config.get('vurmctld', 'endpoint')
     endpoint = endpoints.serverFromString(reactor, endpoint)

@@ -26,10 +26,14 @@ def main():
 
     def gotResult(_):
         print "The virtual cluster was correctly destroyed."
-        reactor.stop()
     d.addCallback(gotResult)
-    
-    d.addErrback(log.err)
+
+    def gotError(failure):
+        print failure.value
+        print failure
+    d.addErrback(gotError)
+
+    d.addBoth(lambda _: reactor.stop())
 
     reactor.run()
 

@@ -65,11 +65,11 @@ class LocalNode(protocol.ProcessProtocol, object):
 
 
     def outReceived(self, data):
-        self.log.info(data.rstrip())
+        self.log.debug(data.rstrip())
     
     
     def errReceived(self, data):
-        self.log.err(data.rstrip())
+        self.log.debug(data.rstrip())
 
 
     def processExited(self, reason):
@@ -106,7 +106,7 @@ class LocalNode(protocol.ProcessProtocol, object):
         if self.status != LocalNode.WAITING:
             raise RuntimeError('Can only spawn a node in the WAITING status')
 
-        self.log.info('Spawning new slurmd process')
+        self.log.debug('Spawning new slurmd process')
 
         self.status = LocalNode.STARTED
 
@@ -124,7 +124,7 @@ class LocalNode(protocol.ProcessProtocol, object):
         if self.isRunning():
             return self.terminate()
 
-        return defer.succeed()
+        return defer.succeed(self)
 
 
 
