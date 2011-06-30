@@ -23,7 +23,9 @@ class Logger(object):
         sys.stderr = log.logerr
 
 
-    def printFormatted(self, event):
+    def printFormatted(self, event, severity=0):
+        if event.get('severity', logging.WARNING) < severity:
+            return
         # {timestamp:%Y-%m-%d %H:%M:%S}
         # 'timestamp': event.get('timestmap', datetime.now()),
 
@@ -40,13 +42,10 @@ class Logger(object):
         }))
 
 
-    def addObserver(self, callable, severity=0):
+    def addObserver(self, callable, *args, **kwargs):
         def observer(event):
-            eventName = event.get('name', '')
-            eventSeverity = event.get('severity', logging.WARNING)
-            
-            if eventName.startswith(self.name) and eventSeverity >= severity:
-                callable(event)
+            if event.get('name', '').startswith(self.name):
+                callable(event, *args, **kwargs)
 
         log.addObserver(observer)
 

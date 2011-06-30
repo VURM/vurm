@@ -81,7 +81,7 @@ class VirtualCluster(object):
 
 
     def release(self):
-        self.log.info('Releas request received, shutting down virtual cluster')
+        self.log.info('Release request received, shutting down virtual cluster')
         
         return self.terminateNodes()
 

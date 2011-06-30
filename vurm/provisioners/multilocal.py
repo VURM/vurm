@@ -66,8 +66,8 @@ class LocalNode(protocol.ProcessProtocol, object):
 
     def outReceived(self, data):
         self.log.debug(data.rstrip())
-    
-    
+
+
     def errReceived(self, data):
         self.log.debug(data.rstrip())
 
@@ -132,6 +132,19 @@ class Provisioner(object):
 
     implements(resources.IResourceProvisioner)
 
+    __currentPort = None
+
+
+    def getNextPort(self):
+        cls = self.__class__
+
+        if cls.__currentPort is None:
+            cls.__currentPort = self.basePort
+        else:
+            cls.__currentPort += 1
+
+        return cls.__currentPort
+
 
     def __init__(self, reactor, config):
         self.reactor = reactor
@@ -145,7 +158,7 @@ class Provisioner(object):
         executable = self.config.get('multilocal', 'slurmd')
 
         for i in range(count):
-            node = LocalNode(executable, self.basePort + i, self.reactor)
+            node = LocalNode(executable, self.getNextPort(), self.reactor)
             nodes.append(defer.succeed(node))
 
         return nodes
