@@ -24,7 +24,7 @@ def main():
     # TODO: Log to the file defined in the config file
     log = logging.Logger()
     log.captureStdout()
-    log.addObserver(log.printFormatted, severity=0 if debug else 20)
+    log.addObserver(logging.printFormatted, severity=0 if debug else 20)
 
     # Build controller
     ctld = controller.VurmController(config, [

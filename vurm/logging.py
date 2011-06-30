@@ -1,10 +1,60 @@
+"""
+Logging facilities to combine the advantges of both Python's standard logging
+module and Twisted's logging facility.
+"""
+
+
 from __future__ import absolute_import
 
-from twisted.python import log
+from datetime import datetime
 import logging
 import sys
-from datetime import datetime
 
+from twisted.python import log
+
+
+# Shut PyLint to complain about * and ** magic
+# pylint: disable-msg=W0142
+
+
+def printFormatted(event, severity=0):
+    eventSeverity = event.get('severity', logging.INFO)
+
+    if eventSeverity < severity:
+        return
+
+    # {timestamp:%Y-%m-%d %H:%M:%S}
+    # 'timestamp': event.get('timestmap', datetime.now()),
+
+    indent = ' ' * (15 + len(event['system']))
+
+    message = ' '.join(event['message'])
+    message = '\n'.join([indent + l for l in message.splitlines()])
+    message = message.lstrip()
+
+    sys.__stdout__.write('{severity:>10s}: [{system}] {message}\n'.format(**{
+        'severity': logging.getLevelName(eventSeverity),
+        'system': event['system'],
+        'message': message,
+    }))
+
+
+class StdioOnnaStick(log.StdioOnnaStick, object):
+    
+    def __init__(self, callback):
+        super(StdioOnnaStick, self).__init__(0)
+        self.callback = callback
+
+    def write(self, data):
+        d = (self.buf + data).split('\n')
+        self.buf = d[-1]
+        messages = d[0:-1]
+        for message in messages:
+            self.callback(message, printed=1)
+
+    def writelines(self, lines):
+        for line in lines:
+            self.callback(line, printed=1)
 
 
 class Logger(object):
@@ -19,27 +69,8 @@ class Logger(object):
     #
 
     def captureStdout(self):
-        sys.stdout = log.logfile
-        sys.stderr = log.logerr
-
-
-    def printFormatted(self, event, severity=0):
-        if event.get('severity', logging.WARNING) < severity:
-            return
-        # {timestamp:%Y-%m-%d %H:%M:%S}
-        # 'timestamp': event.get('timestmap', datetime.now()),
-
-        indent = ' ' * (15 + len(event['system']))
-
-        message = ' '.join(event['message'])
-        message = '\n'.join([indent + l for l in message.splitlines()])
-        message = message.lstrip()
-
-        sys.__stdout__.write('{severity:>10s}: [{system}] {message}\n'.format(**{
-            'severity': logging.getLevelName(event.get('severity', logging.INFO)),
-            'system': event['system'],
-            'message': message,
-        }))
+        sys.stdout = StdioOnnaStick(self.info)
+        sys.stderr = StdioOnnaStick(self.error)
 
 
     def addObserver(self, callable, *args, **kwargs):
@@ -48,6 +79,7 @@ class Logger(object):
                 callable(event, *args, **kwargs)
 
         log.addObserver(observer)
+
 
     # ------------------------------------------------------------------------
     # General reporting facilities as exposed by twisted
@@ -93,11 +125,14 @@ class Logger(object):
         self.log(msg, *args, **kwargs)
     warn = warning
 
+
     def error(self, msg, *args, **kwargs):
         kwargs['severity'] = logging.ERROR
         self.log(msg, *args, **kwargs)
     err = error
 
+
     def critical(self, msg, *args, **kwargs):
         kwargs['severity'] = logging.CRITICAL
         self.log(msg, *args, **kwargs)
+
