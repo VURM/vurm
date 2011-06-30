@@ -36,9 +36,6 @@ def loadConfig(path=None, loadDefaults=True):
             os.path.join(os.path.dirname(os.path.dirname(__file__)), 'tests',
                     'config.ini'),
         ])
-        
-        print os.path.join(os.path.dirname(os.path.dirname(__file__)), 'tests',
-                'config.ini')
 
     if path:
         config.readfp(path.open())

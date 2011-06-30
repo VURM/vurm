@@ -23,25 +23,34 @@ from vurm import resources, logging
 
 
 
-log = logging.Logger(__name__)
-
-
-
-class LocalNode(protocol.ProcessProtocol):
+class LocalNode(protocol.ProcessProtocol, object):
 
     implements(resources.INode)
 
     WAITING, STARTED, TERMINATING, STOPPED = range(4)
 
 
-    def __init__(self, name, executable, port, reactor):
-        self.name = name
+    def __init__(self, executable, port, reactor):
+        self._nodeName = None
         self.port = port
+        self.hostname = 'localhost'
+
+        self.log = logging.Logger(__name__)
         self.executable = executable
         self.reactor = reactor
         self.started = defer.Deferred()
         self.stopped = defer.Deferred()
         self.status = LocalNode.WAITING
+
+
+    @property
+    def nodeName(self):
+        return self._nodeName
+
+    @nodeName.setter
+    def nodeName(self, value):
+        self.log.config['system'] = value
+        self._nodeName = value
 
 
     def isRunning(self):
@@ -50,33 +59,33 @@ class LocalNode(protocol.ProcessProtocol):
 
     def connectionMade(self):
         self.transport.closeStdin()
-        log.info('New slurmd process started with PID {0}', self.transport.pid,
-                system=self.name)
+        self.log.info('New slurmd process started with PID {0}',
+                self.transport.pid)
         self.started.callback(self)
 
 
-    #def outReceived(self, data):
-    #    log.info(data.rstrip(), system=self.name)
-
-
-    #def errReceived(self, data):
-    #    log.err(data.rstrip(), system=self.name)
+    def outReceived(self, data):
+        self.log.info(data.rstrip())
+    
+    
+    def errReceived(self, data):
+        self.log.err(data.rstrip())
 
 
     def processExited(self, reason):
         if self.status == LocalNode.TERMINATING:
-            log.debug('Process exited normally', system=self.name)
+            self.log.debug('Process exited normally')
             self.status = LocalNode.STOPPED
             self.stopped.callback(self)
         else:
-            log.warn('Process quit unexpectedly', system=self.name)
+            self.log.warn('Process quit unexpectedly')
             self.status = LocalNode.STOPPED
             self.stopped.errback(reason)
 
 
     def processEnded(self, reason):
         if self.status != LocalNode.STOPPED:
-            log.warn("Ended {0!r}", reason, system=self.name)
+            self.log.warn("Ended {0!r}", reason)
 
 
     def terminate(self):
@@ -97,18 +106,18 @@ class LocalNode(protocol.ProcessProtocol):
         if self.status != LocalNode.WAITING:
             raise RuntimeError('Can only spawn a node in the WAITING status')
 
-        log.info('Spawning new slurmd process')
+        self.log.info('Spawning new slurmd process')
 
         self.status = LocalNode.STARTED
 
-        args = [os.path.basename(self.executable), '-D', '-N', self.name]
+        args = [os.path.basename(self.executable), '-D', '-N', self.nodeName]
         self.reactor.spawnProcess(self, self.executable, args)
         return self.started
 
 
     def getConfigurationEntry(self):
-        return 'NodeName={0} NodeHostname=localhost Port={1}'.format(
-                self.name, self.port)
+        return 'NodeName={self.nodeName} NodeHostname={self.hostname} ' \
+                'Port={self.port}'.format(self=self)
 
 
     def release(self):
@@ -127,6 +136,7 @@ class Provisioner(object):
     def __init__(self, reactor, config):
         self.reactor = reactor
         self.config = config
+        self.basePort = config.getint('multilocal', 'baseport')
 
 
     def getNodes(self, count):
@@ -135,8 +145,7 @@ class Provisioner(object):
         executable = self.config.get('multilocal', 'slurmd')
 
         for i in range(count):
-            node = LocalNode('local-{0:03d}'.format(i), executable, 17000 + i,
-                self.reactor)
+            node = LocalNode(executable, self.basePort + i, self.reactor)
             nodes.append(defer.succeed(node))
 
         return nodes
