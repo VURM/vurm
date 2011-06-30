@@ -51,7 +51,7 @@ class INode(Interface):
                         to listen for incoming connections""")
 
 
-    def getConfigurationEntry():
+    def getConfigEntry():
         """
         Returns the line which has to be added to the `slurmctld` configuration
         file for this node to be recoqgnized as such.

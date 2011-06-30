@@ -115,7 +115,7 @@ class LocalNode(protocol.ProcessProtocol, object):
         return self.started
 
 
-    def getConfigurationEntry(self):
+    def getConfigEntry(self):
         return 'NodeName={self.nodeName} NodeHostname={self.hostname} ' \
                 'Port={self.port}'.format(self=self)
 

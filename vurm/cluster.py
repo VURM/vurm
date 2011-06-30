@@ -62,7 +62,7 @@ class VirtualCluster(object):
         entries = [
             '# [{0}]'.format(self.name),
         ] + [
-            n.getConfigurationEntry() for n in self.nodes
+            n.getConfigEntry() for n in self.nodes
         ] + [
             'PartitionName={0} Nodes={1} Default=NO MaxTime=INFINITE ' \
                     'State=UP'.format(self.name, nodenames),
