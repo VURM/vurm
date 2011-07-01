@@ -30,13 +30,13 @@ class LocalNode(protocol.ProcessProtocol, object):
     WAITING, STARTED, TERMINATING, STOPPED = range(4)
 
 
-    def __init__(self, executable, port, reactor):
+    def __init__(self, slurmd, port, reactor):
         self._nodeName = None
         self.port = port
         self.hostname = 'localhost'
 
         self.log = logging.Logger(__name__)
-        self.executable = executable
+        self.slurmd = slurmd
         self.reactor = reactor
         self.started = defer.Deferred()
         self.stopped = defer.Deferred()
@@ -110,8 +110,14 @@ class LocalNode(protocol.ProcessProtocol, object):
 
         self.status = LocalNode.STARTED
 
-        args = [os.path.basename(self.executable), '-D', '-N', self.nodeName]
-        self.reactor.spawnProcess(self, self.executable, args)
+        formatArgs = {
+            'nodeName': self.nodeName,
+            'hostname': self.hostname,
+            'port': self.port,
+        }
+
+        args = ['sh', '-c', self.slurmd.format(**formatArgs)]
+        self.reactor.spawnProcess(self, 'sh', args)
         return self.started
 
 
@@ -155,10 +161,10 @@ class Provisioner(object):
     def getNodes(self, count):
         nodes = []
 
-        executable = self.config.get('multilocal', 'slurmd')
+        slurmd = self.config.get('multilocal', 'slurmd')
 
         for i in range(count):
-            node = LocalNode(executable, self.getNextPort(), self.reactor)
+            node = LocalNode(slurmd, self.getNextPort(), self.reactor)
             nodes.append(defer.succeed(node))
 
         return nodes
