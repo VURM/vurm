@@ -5,11 +5,11 @@ dynamically adding physical and/or virtual resources to SLURM.
 
 
 
-from zope.interface import Interface
+from zope.interface import Interface, Attribute
 
 
 
-class IResourceProvisioner(Interface):
+class IResourceProvisioner(Interface): # pragma: no cover
     """
     Base interface to be implemented by all provisioner classes.
     """
@@ -35,13 +35,23 @@ class IResourceProvisioner(Interface):
 
 
 
-class INode(Interface):
+class INode(Interface): # pragma: no cover
     """
     A model representing a single physical or virtual node to be provided to
     SLURM.
     """
 
-    def getConfigurationEntry():
+    nodeName = Attribute("""The NodeName entry for this node in the slurm 
+                            configuration file""")
+
+    hostname = Attribute("""The hostname to which the slurm controller deamon
+                            will connect to to reach this node""")
+
+    port = Attribute("""The port on which the slurmd related to this node has
+                        to listen for incoming connections""")
+
+
+    def getConfigEntry():
         """
         Returns the line which has to be added to the `slurmctld` configuration
         file for this node to be recoqgnized as such.
@@ -52,6 +62,10 @@ class INode(Interface):
         """
         Does all what necessary to start the slurmd daemon for this node and
         having it registered to the slurm controller.
+
+        The spawned slurm daemon will listen on the given port and register to
+        the slurm controller daemon using the provided name.
+
         """
 
 

@@ -16,3 +16,12 @@ class RemoteVurmException(pb.Error):
 class InsufficientResourcesException(RemoteVurmException):
     pass
 
+
+
+class ReconfigurationError(RemoteVurmException):
+    pass
+
+
+
+class InvalidClusterName(pb.Error):
+    pass

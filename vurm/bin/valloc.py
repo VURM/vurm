@@ -26,10 +26,14 @@ def main():
 
     def gotName(name):
         print "You can now submit jobs to the virtual cluster by using the --partition={0!r} option".format(name)
-        reactor.stop()
     d.addCallback(gotName)
-    
-    d.addErrback(log.err)
+
+    def gotError(failure):
+        print failure.value
+        print failure
+    d.addErrback(gotError)
+
+    d.addBoth(lambda _: reactor.stop())
 
     reactor.run()
 
