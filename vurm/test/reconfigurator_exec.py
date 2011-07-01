@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 """
 Simple test script to be invoked as replacement for the scontrol binary.
 """

@@ -4,6 +4,7 @@ VURM controller daemon implementation and support classes
 
 
 
+import os
 import shlex
 
 from twisted.spread import pb
@@ -44,11 +45,12 @@ class VurmController(pb.Root):
             # Reload slurm config file
             command = shlex.split(self.config.get('vurmctld', 'reconfigure'))
 
-            res = yield utils.getProcessValue(command[0], command[1:])
+            res = yield utils.getProcessValue(command[0], command[1:],
+                    env=os.environ)
 
             if res:
                 raise error.ReconfigurationError('Local slurm instance could ' \
-                        'not be reconfigured')
+                        'not be reconfigured (return code: {0})'.format(res))
 
 
     @defer.inlineCallbacks
