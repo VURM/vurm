@@ -15,6 +15,11 @@ from vurm.provisioners import multilocal
 
 
 def main():
+
+    # TODO: for testing only, remove the following line
+    settings.DEFAULT_FILES.append(os.path.join(os.path.dirname(
+            os.path.dirname(os.path.dirname(__file__))), 'tests', 'config.ini'))
+
     # Read configuration file
     config = settings.loadConfig()
 
@@ -23,8 +28,8 @@ def main():
     # Configure logging
     # TODO: Log to the file defined in the config file
     log = logging.Logger()
+    log.addObserver(logging.printFormatted, sys.stdout, severity=0 if debug else 20)
     log.captureStdout()
-    log.addObserver(logging.printFormatted, severity=0 if debug else 20)
 
     # Build controller
     ctld = controller.VurmController(config, [

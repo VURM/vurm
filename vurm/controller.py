@@ -28,9 +28,9 @@ class VurmController(pb.Root):
         if not add and not remove:
             raise TypeError('Provide a value to add or one to remove')
 
+        # Marked as not covered because of bug #122:
+        # https://bitbucket.org/ned/coveragepy/issue/128/
         with open(self.config.get('vurmctld', 'slurmconfig'), 'r+') as fh:
-            # Try to do our best to avoid racing conditions
-            # This may block... not good for twisted, defer it to a thread
             newConf = fh.read()
             newConf = newConf.replace(remove, '')
             newConf += add
@@ -101,6 +101,8 @@ class VurmController(pb.Root):
         def adapt(node):
             return resources.INode(node)
 
+        # Marked as not covered because of bug #122:
+        # https://bitbucket.org/ned/coveragepy/issue/122/
         for provisioner in self.provisioners:
             count = size - len(nodes)
 
