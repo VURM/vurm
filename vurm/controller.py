@@ -5,7 +5,6 @@ VURM controller daemon implementation and support classes
 
 
 import os
-import shlex
 
 from twisted.spread import pb
 from twisted.internet import defer, utils
@@ -43,9 +42,9 @@ class VurmController(pb.Root):
 
         if notify:
             # Reload slurm config file
-            command = shlex.split(self.config.get('vurmctld', 'reconfigure'))
+            cmd = self.config.get('vurmctld', 'reconfigure')
 
-            res = yield utils.getProcessValue(command[0], command[1:],
+            res = yield utils.getProcessValue('sh', ['-c', cmd],
                     env=os.environ)
 
             if res:
