@@ -4,10 +4,10 @@ VURM controller daemon implementation and support classes
 
 
 
-import fcntl
+import shlex
 
 from twisted.spread import pb
-from twisted.internet import defer, utils, threads
+from twisted.internet import defer, utils
 
 from vurm import logging, resources, error, cluster
 
@@ -18,7 +18,7 @@ class VurmController(pb.Root):
 
     def __init__(self, configuration, provisioners):
         self.config = configuration
-        self.provisioners = provisioners
+        self.provisioners = [resources.IResourceProvisioner(p) for p in provisioners]
         self.clusters = {}
         self.log = logging.Logger(__name__, system='vurmctld')
 
@@ -26,13 +26,11 @@ class VurmController(pb.Root):
     @defer.inlineCallbacks
     def updateSlurmConfig(self, add='', remove='', notify=True):
         if not add and not remove:
-            raise ValueError('Provide a value to add or one to remove')
+            raise TypeError('Provide a value to add or one to remove')
 
         with open(self.config.get('vurmctld', 'slurmconfig'), 'r+') as fh:
             # Try to do our best to avoid racing conditions
             # This may block... not good for twisted, defer it to a thread
-            yield threads.deferToThread(fcntl.lockf, fh, fcntl.LOCK_EX)
-
             newConf = fh.read()
             newConf = newConf.replace(remove, '')
             newConf += add
@@ -44,8 +42,9 @@ class VurmController(pb.Root):
 
         if notify:
             # Reload slurm config file
-            res = yield utils.getProcessValue('/usr/local/bin/scontrol',
-                    ['reconfigure'])
+            command = shlex.split(self.config.get('vurmctld', 'reconfigure'))
+
+            res = yield utils.getProcessValue(command[0], command[1:])
 
             if res:
                 raise error.ReconfigurationError('Local slurm instance could ' \
@@ -114,13 +113,18 @@ class VurmController(pb.Root):
                 break
         else:
             if len(nodes) < minSize:
-                self.log.error('Not enough resources to satisfy request ' \
-                        '({0}/{1})', len(nodes), minSize)
+                msg = 'Not enough resources to satisfy request ' \
+                        '({0}/{1})'.format(len(nodes), minSize)
+                
+                self.log.error(msg)
 
-                for node in nodes:
+                def release(node):
                     node.release()
 
-                raise error.InsufficientResourcesException('MSG')
+                for node in nodes:
+                    node.addCallback(release)
+
+                raise error.InsufficientResourcesException(msg)
 
         self.log.debug('Waiting for all nodes to come up')
 

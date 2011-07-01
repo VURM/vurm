@@ -9,7 +9,7 @@ from zope.interface import Interface, Attribute
 
 
 
-class IResourceProvisioner(Interface):
+class IResourceProvisioner(Interface): # pragma: no cover
     """
     Base interface to be implemented by all provisioner classes.
     """
@@ -35,7 +35,7 @@ class IResourceProvisioner(Interface):
 
 
 
-class INode(Interface):
+class INode(Interface): # pragma: no cover
     """
     A model representing a single physical or virtual node to be provided to
     SLURM.
