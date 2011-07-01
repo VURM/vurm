@@ -7,6 +7,7 @@ module and Twisted's logging facility.
 from __future__ import absolute_import
 
 from datetime import datetime
+
 import logging
 import sys
 
@@ -17,7 +18,7 @@ from twisted.python import log
 # pylint: disable-msg=W0142
 
 
-def printFormatted(event, severity=0):
+def printFormatted(event, stream, severity=0):
     eventSeverity = event.get('severity', logging.INFO)
 
     if eventSeverity < severity:
@@ -32,11 +33,12 @@ def printFormatted(event, severity=0):
     message = '\n'.join([indent + l for l in message.splitlines()])
     message = message.lstrip()
 
-    sys.__stdout__.write('{severity:>10s}: [{system}] {message}\n'.format(**{
+    stream.write('{severity:>10s}: [{system}] {message}\n'.format(**{
         'severity': logging.getLevelName(eventSeverity),
         'system': event['system'],
         'message': message,
     }))
+
 
 
 class StdioOnnaStick(log.StdioOnnaStick, object):
@@ -57,7 +59,11 @@ class StdioOnnaStick(log.StdioOnnaStick, object):
             self.callback(line, printed=1)
 
 
+
 class Logger(object):
+
+    # TODO: Change the use a local LogPublisher (or extend from) instead of 
+    #       the global log and err functions of the t.p.log module
 
     def __init__(self, name='', **kwargs):
         self.name = name
@@ -90,10 +96,11 @@ class Logger(object):
         config.update(kwargs)
         config['timestamp'] = datetime.now()
 
-        if isinstance(msg, basestring):
+        if isinstance(msg, basestring) and args:
             msg = msg.format(*args)
-        else:
-            msg = unicode(msg)
+        elif args:
+            raise TypeError('The msg parameter is not a string but ' \
+                    'formatting parameters were passed in')
 
         log.msg(msg, **config)
 

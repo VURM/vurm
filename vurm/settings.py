@@ -9,7 +9,14 @@ import ConfigParser
 
 
 
-def loadConfig(path=None, loadDefaults=True):
+DEFAULT_FILES = [
+    '/etc/vurm/vurm.conf',
+    os.path.expanduser('~/.vurm.conf'),
+]
+
+
+
+def loadConfig(path=None, defaults=DEFAULT_FILES):
     """
     Loads and parses an INI style configuration file using Python's buil-in
     ConfigParser module.
@@ -27,15 +34,8 @@ def loadConfig(path=None, loadDefaults=True):
 
     config = ConfigParser.SafeConfigParser()
 
-    if loadDefaults:
-        config.read([
-            '/etc/vurm/vurm.conf',
-            os.path.expanduser('~/.vurm.conf'),
-
-            # For testing only:
-            os.path.join(os.path.dirname(os.path.dirname(__file__)), 'tests',
-                    'config.ini'),
-        ])
+    if defaults:
+        config.read(defaults)
 
     if path:
         config.readfp(path.open())
