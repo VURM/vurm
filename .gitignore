@@ -18,3 +18,7 @@ _trial_temp*
 
 # Ignore converage data generated while running tests
 .coverage
+
+# Ignore generated documentation
+docs/_build
+apidocs
