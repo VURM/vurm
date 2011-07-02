@@ -72,20 +72,15 @@ class LocalNode(protocol.ProcessProtocol, object):
         self.log.debug(data.rstrip())
 
 
-    def processExited(self, reason):
+    def processEnded(self, reason):
         if self.status == LocalNode.TERMINATING:
-            self.log.debug('Process exited normally')
+            self.log.debug('Process exited normally ({0!r})', reason)
             self.status = LocalNode.STOPPED
             self.stopped.callback(self)
         else:
-            self.log.warn('Process quit unexpectedly')
+            self.log.warn('Process quit unexpectedly ({0!r})', reason)
             self.status = LocalNode.STOPPED
             self.stopped.errback(reason)
-
-
-    def processEnded(self, reason):
-        if self.status != LocalNode.STOPPED:
-            self.log.warn("Ended {0!r}", reason)
 
 
     def terminate(self):
