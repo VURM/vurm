@@ -1,6 +1,6 @@
 """
 Classes and utilities to provide a resource provisioner which simply spawns
-multiple `slurmd` processes on the local machine by using SLURM's support for
+multiple ``slurmd`` processes on the local machine by using SLURM's support for
 multiple daemons.
 
 This provisioner is only supported by SLURM if it was compiled and configured

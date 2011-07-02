@@ -53,8 +53,8 @@ class INode(Interface): # pragma: no cover
 
     def getConfigEntry():
         """
-        Returns the line which has to be added to the `slurmctld` configuration
-        file for this node to be recoqgnized as such.
+        Returns the line which has to be added to the ``slurmctld``
+        configuration file for this node to be recoqgnized as such.
         """
 
 
