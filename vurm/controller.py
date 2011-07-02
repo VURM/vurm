@@ -28,7 +28,7 @@ class VurmController(pb.Root):
         if not add and not remove:
             raise TypeError('Provide a value to add or one to remove')
 
-        # Marked as not covered because of bug #122:
+        # Marked as not covered because of bug #128:
         # https://bitbucket.org/ned/coveragepy/issue/128/
         with open(self.config.get('vurmctld', 'slurmconfig'), 'r+') as fh:
             newConf = fh.read()
