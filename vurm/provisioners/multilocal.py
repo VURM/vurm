@@ -41,6 +41,7 @@ class LocalNode(protocol.ProcessProtocol, object):
         self.started = defer.Deferred()
         self.stopped = defer.Deferred()
         self.status = LocalNode.WAITING
+        self.protocol = LocalNode.SlurmdProtocol(self)
 
 
     @property
@@ -57,38 +58,12 @@ class LocalNode(protocol.ProcessProtocol, object):
         return self.status == LocalNode.STARTED
 
 
-    def connectionMade(self):
-        self.transport.closeStdin()
-        self.log.info('New slurmd process started with PID {0}',
-                self.transport.pid)
-        self.started.callback(self)
-
-
-    def outReceived(self, data):
-        self.log.debug(data.rstrip())
-
-
-    def errReceived(self, data):
-        self.log.debug(data.rstrip())
-
-
-    def processEnded(self, reason):
-        if self.status == LocalNode.TERMINATING:
-            self.log.debug('Process exited normally ({0!r})', reason)
-            self.status = LocalNode.STOPPED
-            self.stopped.callback(self)
-        else:
-            self.log.warn('Process quit unexpectedly ({0!r})', reason)
-            self.status = LocalNode.STOPPED
-            self.stopped.errback(reason)
-
-
     def terminate(self):
         if self.status != LocalNode.STARTED:
             raise RuntimeError('Can only terminate a node in the RUNNING status')
 
         self.status = LocalNode.TERMINATING
-        os.kill(self.transport.pid, signal.SIGTERM)
+        self.protocol.transport.signalProcess('KILL')
 
         return self.stopped
 
@@ -112,7 +87,7 @@ class LocalNode(protocol.ProcessProtocol, object):
         }
 
         args = ['sh', '-c', self.slurmd.format(**formatArgs)]
-        self.reactor.spawnProcess(self, 'sh', args)
+        self.reactor.spawnProcess(self.protocol, 'sh', args)
         return self.started
 
 
@@ -126,6 +101,37 @@ class LocalNode(protocol.ProcessProtocol, object):
             return self.terminate()
 
         return defer.succeed(self)
+
+
+    class SlurmdProtocol(protocol.ProcessProtocol):
+
+        def __init__(self, node):
+            self.node = node
+
+        def connectionMade(self):
+            self.transport.closeStdin()
+            self.node.log.info('New slurmd process started with PID {0}',
+                    self.transport.pid)
+            self.node.started.callback(self.node)
+
+
+        def outReceived(self, data):
+            self.node.log.debug(data.rstrip())
+
+
+        def errReceived(self, data):
+            self.node.log.debug(data.rstrip())
+
+
+        def processEnded(self, reason):
+            if self.node.status == LocalNode.TERMINATING:
+                self.node.log.debug('Process exited normally ({0!r})', reason)
+                self.node.status = LocalNode.STOPPED
+                self.node.stopped.callback(self.node)
+            else:
+                self.node.log.warn('Process quit unexpectedly ({0!r})', reason)
+                self.node.status = LocalNode.STOPPED
+                self.node.stopped.errback(reason)
 
 
 
