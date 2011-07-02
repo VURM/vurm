@@ -41,4 +41,3 @@ def loadConfig(path=None, defaults=DEFAULT_FILES):
         config.readfp(path.open())
 
     return config
-

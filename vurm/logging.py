@@ -42,7 +42,7 @@ def printFormatted(event, stream, severity=0):
 
 
 class StdioOnnaStick(log.StdioOnnaStick, object):
-    
+
     def __init__(self, callback):
         super(StdioOnnaStick, self).__init__(0)
         self.callback = callback
@@ -62,7 +62,7 @@ class StdioOnnaStick(log.StdioOnnaStick, object):
 
 class Logger(object):
 
-    # TODO: Change the use a local LogPublisher (or extend from) instead of 
+    # TODO: Change the use a local LogPublisher (or extend from) instead of
     #       the global log and err functions of the t.p.log module
 
     def __init__(self, name='', **kwargs):
@@ -142,4 +142,3 @@ class Logger(object):
     def critical(self, msg, *args, **kwargs):
         kwargs['severity'] = logging.CRITICAL
         self.log(msg, *args, **kwargs)
-

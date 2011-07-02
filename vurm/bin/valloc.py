@@ -8,7 +8,6 @@ import sys
 
 from twisted.spread import pb
 from twisted.internet import reactor, endpoints
-from twisted.python import log
 
 
 
@@ -21,11 +20,13 @@ def main():
     d = factory.getRootObject()
 
     def gotController(controller, numNodes, minNumNodes=None):
-        return controller.callRemote('createVirtualCluster', numNodes, minNumNodes)
+        return controller.callRemote('createVirtualCluster', numNodes,
+                minNumNodes)
     d.addCallback(gotController, int(sys.argv[1]))
 
     def gotName(name):
-        print "You can now submit jobs to the virtual cluster by using the --partition={0!r} option".format(name)
+        print "You can now submit jobs to the virtual cluster by using the ' \
+                '--partition={0!r} option".format(name)
     d.addCallback(gotName)
 
     def gotError(failure):

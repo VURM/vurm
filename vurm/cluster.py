@@ -94,7 +94,7 @@ class VirtualCluster(object):
 
         width = len(str(len(self.nodes)))
         nodenames = 'nd-{0}-[{2:0{3}d}-{1}]'.format(self.name[3:],
-                len(self.nodes)-1, 0, width)
+                len(self.nodes) - 1, 0, width)
 
         entries = [
             '# [{0}]'.format(self.name),
@@ -130,7 +130,8 @@ class VirtualCluster(object):
         method.
         """
 
-        self.log.info('Release request received, shutting down virtual cluster')
+        self.log.info('Release request received, shutting down virtual ' \
+                'cluster')
 
         return self.terminateNodes()
 
@@ -148,5 +149,3 @@ class VirtualCluster(object):
         d = defer.DeferredList([n.release() for n in self.nodes])
         d.addCallback(lambda _: self)
         return d
-
-

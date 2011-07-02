@@ -6,7 +6,7 @@ from cStringIO import StringIO
 from vurm import logging
 
 from twisted.trial import unittest
-from twisted.python import failure
+
 
 
 class LoggingTestCase(unittest.TestCase):
@@ -22,7 +22,7 @@ class LoggingTestCase(unittest.TestCase):
         self.logger = logging.Logger()
         self.logger.addObserver(self.logObserver)
 
-    
+
     def tearDown(self):
         logging.log.theLogPublisher.observers = self.observers
 
@@ -65,23 +65,23 @@ class LoggingTestCase(unittest.TestCase):
         with only the required (and already present) event keys to check that
         it doesn't raise an exception.
         """
-        
+
         out = StringIO()
         logging.printFormatted({'system': '-', 'message': ''}, stream=out)
         self.assertTrue(out.getvalue())
-        
+
         # Default severity
         out = StringIO()
         logging.printFormatted({'system': '-', 'message': ''}, stream=out,
                 severity=50)
         self.assertFalse(out.getvalue())
-        
+
         # Explicit severity
         out = StringIO()
         logging.printFormatted({'system': '-', 'message': '', 'severity': 40},
                 stream=out, severity=50)
         self.assertFalse(out.getvalue())
-        
+
         out = StringIO()
         logging.printFormatted({'system': '-', 'message': '', 'severity': 40},
                 stream=out, severity=30)

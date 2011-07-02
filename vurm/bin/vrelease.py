@@ -8,7 +8,6 @@ import sys
 
 from twisted.spread import pb
 from twisted.internet import reactor, endpoints
-from twisted.python import log
 
 
 

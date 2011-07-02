@@ -12,9 +12,6 @@ to support multiple daemons according to the user manual:
 
 
 
-import os
-import signal
-
 from zope.interface import implements
 
 from twisted.internet import protocol, defer
@@ -60,7 +57,8 @@ class LocalNode(protocol.ProcessProtocol, object):
 
     def terminate(self):
         if self.status != LocalNode.STARTED:
-            raise RuntimeError('Can only terminate a node in the RUNNING status')
+            raise RuntimeError('Can only terminate a node in the RUNNING ' \
+                    'status')
 
         self.status = LocalNode.TERMINATING
         self.protocol.transport.signalProcess('KILL')
@@ -169,5 +167,3 @@ class Provisioner(object):
             nodes.append(defer.succeed(node))
 
         return nodes
-
-

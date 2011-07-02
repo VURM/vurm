@@ -1,6 +1,5 @@
 
-import sys
-import os
+
 
 from vurm import settings
 
@@ -18,7 +17,7 @@ CONFIG2 = """
 loaded=True
 """
 
-CONFIG3="""
+CONFIG3 = """
 [section3]
 loaded=True
 """
@@ -54,7 +53,7 @@ class SettingsTestCase(unittest.TestCase):
 
     def test_empty(self):
         conf = settings.loadConfig(defaults=[])
-        
+
         self.assertEquals(conf.sections(), [])
 
 
@@ -67,29 +66,27 @@ class SettingsTestCase(unittest.TestCase):
 
     def test_defaultsOnly(self):
         conf = settings.loadConfig(defaults=[self.config1.path,
-                self.config2.path, self.config3.path,])
+                self.config2.path, self.config3.path])
 
         self.assertIn('section1', conf.sections())
         self.assertTrue(conf.getboolean('section1', 'loaded'))
-        
+
         self.assertIn('section2', conf.sections())
         self.assertTrue(conf.getboolean('section1', 'loaded'))
-        
+
         self.assertIn('section3', conf.sections())
         self.assertTrue(conf.getboolean('section1', 'loaded'))
 
 
     def test_pathAndDefaults(self):
         conf = settings.loadConfig(self.config1, defaults=[self.config2.path,
-                self.config3.path,])
+                self.config3.path])
 
         self.assertIn('section1', conf.sections())
         self.assertTrue(conf.getboolean('section1', 'loaded'))
-        
+
         self.assertIn('section2', conf.sections())
         self.assertTrue(conf.getboolean('section1', 'loaded'))
-        
+
         self.assertIn('section3', conf.sections())
         self.assertTrue(conf.getboolean('section1', 'loaded'))
-
-

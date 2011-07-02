@@ -18,7 +18,9 @@ class VurmController(pb.Root):
 
     def __init__(self, configuration, provisioners):
         self.config = configuration
-        self.provisioners = [resources.IResourceProvisioner(p) for p in provisioners]
+        self.provisioners = []
+        for p in provisioners:
+            self.provisioners.append(resources.IResourceProvisioner(p))
         self.clusters = {}
         self.log = logging.Logger(__name__, system='vurmctld')
 
@@ -48,8 +50,8 @@ class VurmController(pb.Root):
                     env=os.environ)
 
             if res:
-                raise error.ReconfigurationError('Local slurm instance could ' \
-                        'not be reconfigured (return code: {0})'.format(res))
+                raise error.ReconfigurationError('Local slurm instance could' \
+                        ' not be reconfigured (return code: {0})'.format(res))
 
 
     @defer.inlineCallbacks
@@ -74,7 +76,8 @@ class VurmController(pb.Root):
 
         try:
             # Update slurm configuration
-            yield self.updateSlurmConfig(remove=virtualCluster.getConfigEntry())
+            yield self.updateSlurmConfig(
+                    remove=virtualCluster.getConfigEntry())
         except error.ReconfigurationError:
             # The slurm controller daemon could not be contacted, it is
             # probably not running. Let the client deal with that.
@@ -104,13 +107,13 @@ class VurmController(pb.Root):
 
         # Marked as not covered because of bug #122:
         # https://bitbucket.org/ned/coveragepy/issue/122/
-        for provisioner in self.provisioners:
+        for prov in self.provisioners:
             count = size - len(nodes)
 
-            nodes += [n.addCallback(adapt) for n in provisioner.getNodes(count)]
+            nodes += [n.addCallback(adapt) for n in prov.getNodes(count)]
 
             got = len(nodes) - size + count
-            self.log.debug('Got {0} nodes from {1}', got, provisioner)
+            self.log.debug('Got {0} nodes from {1}', got, prov)
 
             if len(nodes) == size:
                 break
@@ -118,7 +121,7 @@ class VurmController(pb.Root):
             if len(nodes) < minSize:
                 msg = 'Not enough resources to satisfy request ' \
                         '({0}/{1})'.format(len(nodes), minSize)
-                
+
                 self.log.error(msg)
 
                 def release(node):
@@ -156,8 +159,8 @@ class VurmController(pb.Root):
 
             # Remove the just written configuration, but without notifying the
             # controller.
-            yield self.updateSlurmConfig(remove=virtualCluster.getConfigEntry(),
-                    notify=False)
+            yield self.updateSlurmConfig(
+                    remove=virtualCluster.getConfigEntry(), notify=False)
 
             self.log.debug('Virtual cluster shutdown complete, raising to ' \
                     'caller')
@@ -170,4 +173,3 @@ class VurmController(pb.Root):
 
         # Return cluster to the caller
         defer.returnValue(virtualCluster.name)
-
