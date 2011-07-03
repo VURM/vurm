@@ -21,6 +21,10 @@ from vurm import resources, logging
 
 
 class LocalNode(protocol.ProcessProtocol, object):
+    """
+    A class implementing the ``INode`` interface which runs a ``slurmd``
+    process locally using SLURM's multiple daemons support.
+    """
 
     implements(resources.INode)
 
@@ -28,6 +32,13 @@ class LocalNode(protocol.ProcessProtocol, object):
 
 
     def __init__(self, slurmd, port, reactor):
+        """
+        Creates a new nodes which spawns a slurm daemon using the command
+        contained in the ``slurmd`` parameter on the given port.
+        
+        The ``reactor`` parameter shall be a valid Twisted reactor instance and
+        will be used to spawn the process.
+        """
         self._nodeName = None
         self.port = port
         self.hostname = 'localhost'
