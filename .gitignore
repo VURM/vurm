@@ -22,3 +22,4 @@ _trial_temp*
 # Ignore generated documentation
 docs/_build
 apidocs
+docs/rebuilt
