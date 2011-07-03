@@ -63,6 +63,11 @@ class SettingsTestCase(unittest.TestCase):
         self.assertEquals(conf.sections(), ['section1'])
         self.assertTrue(conf.getboolean('section1', 'loaded'))
 
+        conf = settings.loadConfig(self.config1, defaults=None)
+
+        self.assertEquals(conf.sections(), ['section1'])
+        self.assertTrue(conf.getboolean('section1', 'loaded'))
+
 
     def test_defaultsOnly(self):
         conf = settings.loadConfig(defaults=[self.config1.path,
