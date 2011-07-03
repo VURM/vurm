@@ -28,7 +28,7 @@ class ProvisionerTestCase(unittest.TestCase):
 
         def provisioner():
             return multilocal.Provisioner(reactor, self.config)
-        provisioners = [provisioner for i in range(10)]
+        provisioners = [provisioner() for i in range(10)]
 
         for i in range(100):
             p = random.choice(provisioners)
