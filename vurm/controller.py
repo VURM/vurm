@@ -1,5 +1,5 @@
 """
-VURM controller daemon implementation and support classes
+VURM controller daemon implementation and support classes.
 """
 
 
@@ -14,19 +14,58 @@ from vurm import logging, resources, error, cluster
 
 
 class VurmController(pb.Root):
+    """
+    Perspective broker root for the vurm controller. This is the base instance
+    which will be exposed over the network using the configured endpoint.
 
+    TODO: Separate the implementation from the perspective broker exposed
+          interface into two different classes.
+    """
 
     def __init__(self, configuration, provisioners):
+        """
+        Creates a new controller with the given configuration provider and the
+        given list of provisioners.
+
+        The configuration parameter has to be a compatible with the
+        ``ConfigParser.RawConfigParser`` interface.
+
+        Each provisioner has to implement the
+        vurm.resources.IResourceProvisioner interface. All passed objects will
+        be adapted to the interface if they don't provide it.
+        """
+
         self.config = configuration
+
         self.provisioners = []
-        for p in provisioners:
-            self.provisioners.append(resources.IResourceProvisioner(p))
+        for prov in provisioners:
+            self.provisioners.append(resources.IResourceProvisioner(prov))
+
         self.clusters = {}
+
         self.log = logging.Logger(__name__, system='vurmctld')
 
 
     @defer.inlineCallbacks
     def updateSlurmConfig(self, add='', remove='', notify=True):
+        """
+        Updates the SLURM configuration by adding or removing the given values.
+
+        At least one parameter (between ``add`` and ``remove``) has to be
+        defined or ``TypeError`` will be raised.
+
+        If the ``notify`` parameter is ``True`` (the default), then the SLURM
+        daemon is reconfigured by invoking the shell command defined by the
+        ``reconfigure`` option of the configuration provider.
+
+        Returns a deferred which callsback as soon as the data has been written
+        or the SLURM controller was reconfigured (if notification is
+        requested).
+
+        If the SLURM controller daemon reconfiguration fails, an
+        ``error.ReconfigurationError`` exception is raised.
+        """
+
         if not add and not remove:
             raise TypeError('Provide a value to add or one to remove')
 
@@ -56,6 +95,16 @@ class VurmController(pb.Root):
 
     @defer.inlineCallbacks
     def remote_destroyVirtualCluster(self, clusterName):
+        """
+        Destroys the virtual cluster named by ``clusterName`` parameter.
+
+        Raises ``error.InvalidClusterName`` if no cluster with such name is
+        found or error.ReconfigurationError if the SLURM controller daemon
+        could not be reconfigured.
+
+        Returns a deferred which fires as soon as the cluster is destroyed.
+        """
+
         self.log.info('Got a virtual cluster shutdown request for {0!r}',
                 clusterName)
 
@@ -93,6 +142,26 @@ class VurmController(pb.Root):
 
     @defer.inlineCallbacks
     def remote_createVirtualCluster(self, size, minSize=None):
+        """
+        Creates a new virtual cluster with ``size`` nodes. If there are not
+        enough resources, the cluster is still created if at least ``minSize``
+        nodes can be allocated (``minSize`` defaults to ``size``).
+
+        The nodes are taken from the first provisioner in the list passed at
+        construction time. If it can't fulfill the request completely, the
+        remaining nodes are taken from the next provisioner and so on.
+
+        Returns the name of the newly created virtual cluster. This name can
+        be used as the value of the ``--partition`` argument when executing the
+        ``srun`` command to submit jobs to SLURM.
+
+        Raises ``error.InsufficientResourcesException`` if, after having
+        requested nodes to all provisioners, the total number of nodes does
+        not meet the ``minSize`` requirement.
+
+        Raises ``error.ReconfigurationError`` if the cluster configuration
+        could not be applied correctly to the running SLURM controller.
+        """
 
         if minSize is None:
             minSize = size
@@ -102,18 +171,16 @@ class VurmController(pb.Root):
 
         nodes = []
 
-        def adapt(node):
-            return resources.INode(node)
-
         # Marked as not covered because of bug #122:
         # https://bitbucket.org/ned/coveragepy/issue/122/
-        for prov in self.provisioners:
+        for provisioner in self.provisioners:
             count = size - len(nodes)
 
-            nodes += [n.addCallback(adapt) for n in prov.getNodes(count)]
+            for node in provisioner.getNodes(count):
+                nodes.append(node.addCallback(resources.INode))
 
             got = len(nodes) - size + count
-            self.log.debug('Got {0} nodes from {1}', got, prov)
+            self.log.debug('Got {0} nodes from {1}', got, provisioner)
 
             if len(nodes) == size:
                 break
@@ -124,11 +191,8 @@ class VurmController(pb.Root):
 
                 self.log.error(msg)
 
-                def release(node):
-                    node.release()
-
                 for node in nodes:
-                    node.addCallback(release)
+                    node.addCallback(lambda n: n.release())
 
                 raise error.InsufficientResourcesException(msg)
 
