@@ -66,9 +66,10 @@ def main():
     # Make sure to exit once done
     d.addBoth(lambda _: reactor.stop())
 
-
     # Run the reactor
     reactor.run()
+
+    # TODO: Return the correct exit code
 
 
 

@@ -16,6 +16,11 @@ from vurm.provisioners import multilocal
 
 
 def main():
+    """
+    Main program entry point.
+
+    TODO: Implement an argument parser
+    """
 
     # TODO: for testing only, remove the following line
     settings.DEFAULT_FILES.append(os.path.join(os.path.dirname(
@@ -48,6 +53,8 @@ def main():
     endpoint.listen(factory)
 
     reactor.run()
+    
+    # TODO: Return the correct exit code
 
 
 
