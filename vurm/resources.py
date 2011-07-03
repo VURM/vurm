@@ -5,6 +5,20 @@ dynamically adding physical and/or virtual resources to SLURM.
 
 
 
+# Shut PyLint to complain about classes not having __init__ methods. These are
+# interfaces.
+# pylint: disable-msg=W0232
+
+# Shut PyLint to complain about methods not having 'self' in their arguments.
+# These are interfaces.
+# pylint: disable-msg=E0213,E0211
+
+# Shut PyLint to complain about undefined names in the logging module (the
+# __future__ import is not correctly handled).
+# pylint: disable-msg=E1101
+
+
+
 from zope.interface import Interface, Attribute
 
 
