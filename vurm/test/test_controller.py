@@ -1,7 +1,6 @@
 
 import ConfigParser
 import os
-from StringIO import StringIO
 
 from vurm import controller, error, resources
 
@@ -109,8 +108,6 @@ class ControllerClusterDestroyTestCase(ControllerTestCaseBse):
 
 
     def test_invalidName(self):
-        provisioner = FakeProvisioner(5)
-
         ctrl = controller.VurmController(self.config, ())
 
         return self.failUnlessFailure(
@@ -128,20 +125,20 @@ class ControllerClusterDestroyTestCase(ControllerTestCaseBse):
 
         cmd = 'python {0} fail'.format(self.reconfigureScript)
         self.config.set('vurmctld', 'reconfigure', cmd)
-        
+
         try:
             yield ctrl.remote_destroyVirtualCluster(name)
         except error.ReconfigurationError:
             for n in provisioner.nodes:
                 self.assertTrue(n.spawned)
                 self.assertTrue(n.released)
-            
+
             # Cluster shall not exist anymore
             yield self.failUnlessFailure(
                 ctrl.remote_destroyVirtualCluster(name),
                 error.InvalidClusterName
             )
-            
+
             defer.returnValue(None)
 
         raise unittest.FailTest()
@@ -342,4 +339,3 @@ class ControllerReconfigureTestCase(ControllerTestCaseBse):
 
         with self.tmpConfig.open() as fh:
             self.assertEquals(fh.read(), '')
-

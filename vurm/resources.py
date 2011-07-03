@@ -5,11 +5,25 @@ dynamically adding physical and/or virtual resources to SLURM.
 
 
 
+# Shut PyLint to complain about classes not having __init__ methods. These are
+# interfaces.
+# pylint: disable-msg=W0232
+
+# Shut PyLint to complain about methods not having 'self' in their arguments.
+# These are interfaces.
+# pylint: disable-msg=E0213,E0211
+
+# Shut PyLint to complain about undefined names in the logging module (the
+# __future__ import is not correctly handled).
+# pylint: disable-msg=E1101
+
+
+
 from zope.interface import Interface, Attribute
 
 
 
-class IResourceProvisioner(Interface): # pragma: no cover
+class IResourceProvisioner(Interface):  # pragma: no cover
     """
     Base interface to be implemented by all provisioner classes.
     """
@@ -35,13 +49,13 @@ class IResourceProvisioner(Interface): # pragma: no cover
 
 
 
-class INode(Interface): # pragma: no cover
+class INode(Interface):  # pragma: no cover
     """
     A model representing a single physical or virtual node to be provided to
     SLURM.
     """
 
-    nodeName = Attribute("""The NodeName entry for this node in the slurm 
+    nodeName = Attribute("""The NodeName entry for this node in the slurm
                             configuration file""")
 
     hostname = Attribute("""The hostname to which the slurm controller deamon
@@ -74,4 +88,3 @@ class INode(Interface): # pragma: no cover
         Releases all resources currently allocated to this node. If necessary,
         this method causes the slurm daemon to terminate.
         """
-

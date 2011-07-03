@@ -25,8 +25,10 @@ class ProvisionerTestCase(unittest.TestCase):
 
     def test_portNumbers(self):
         multilocal.Provisioner._Provisioner__currentPort = None
-        
-        provisioners = [multilocal.Provisioner(reactor, self.config) for i in range(10)]
+
+        def provisioner():
+            return multilocal.Provisioner(reactor, self.config)
+        provisioners = [provisioner for i in range(10)]
 
         for i in range(100):
             p = random.choice(provisioners)
@@ -39,16 +41,16 @@ class ProvisionerTestCase(unittest.TestCase):
         Test that getNodes returns a list of deferreds and that each of the
         results can be adapted to the INode interface.
         """
-        
+
         provisioner = multilocal.Provisioner(reactor, self.config)
 
         def adapt(node):
             return resources.INode(node)
 
         nodeCallbacks = provisioner.getNodes(20)
-        
+
         self.assertEquals(len(nodeCallbacks), 20)
-        
+
         nodes = [nCb.addCallback(adapt) for nCb in nodeCallbacks]
 
         yield defer.gatherResults(nodes)
@@ -186,5 +188,3 @@ class LocalNodeTestCase(unittest.TestCase):
 
         # This should not
         yield node.release()
-
-

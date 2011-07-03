@@ -18,7 +18,7 @@ if __name__ == '__main__':
                 time.sleep(10)
         except KeyboardInterrupt:
             pass
-        
+
         sys.exit(0)
 
     if sys.argv[1] == 'print':
@@ -26,7 +26,7 @@ if __name__ == '__main__':
         sys.stdout.flush()
         sys.stderr.write('writing on stderr\n')
         sys.stderr.flush()
-        
+
         sys.exit(0)
 
     if sys.argv[1] == 'callback':
