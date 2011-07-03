@@ -17,7 +17,7 @@ def main():
 
     TODO: Implement an argument parser
     """
-    
+
     factory = pb.PBClientFactory()
 
     # Create a new endpoint
@@ -65,7 +65,7 @@ def main():
 
     # Run the reactor
     reactor.run()
-    
+
     # TODO: Return the correct exit code
 
 
