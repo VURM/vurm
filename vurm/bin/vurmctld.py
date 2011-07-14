@@ -11,7 +11,7 @@ from twisted.spread import pb
 from twisted.internet import reactor, endpoints
 
 from vurm import logging, settings, controller
-from vurm.provisioners import multilocal
+from vurm.provisioners import multilocal, remotevirt
 
 
 
@@ -30,7 +30,7 @@ def main():
     # Read configuration file
     config = settings.loadConfig()
 
-    debug = config.getboolean('vurmctld', 'debug')
+    debug = config.getboolean('vurm', 'debug')
 
     # Configure logging
     # TODO: Log to the file defined in the config file
@@ -41,7 +41,8 @@ def main():
 
     # Build controller
     ctld = controller.VurmController(config, [
-        multilocal.Provisioner(reactor, config),
+        remotevirt.Provisioner(reactor, config),
+        #multilocal.Provisioner(reactor, config),
     ])
 
     # Publish daemon

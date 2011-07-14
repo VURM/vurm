@@ -104,6 +104,11 @@ class VurmController(pb.Root):
 
         Returns a deferred which fires as soon as the cluster is destroyed.
         """
+        if clusterName == 'all':
+            # Activated for debug only
+            for clusterName in self.clusters.keys():
+                yield self.remote_destroyVirtualCluster(clusterName)
+            defer.returnValue(None)
 
         self.log.info('Got a virtual cluster shutdown request for {0!r}',
                 clusterName)
@@ -169,6 +174,8 @@ class VurmController(pb.Root):
         self.log.info('Got a new virtual cluster request for {0} nodes ' \
                 '(minimum: {1})', size, minSize)
 
+        clusterName = cluster.VirtualCluster.generateClusterName()
+        nodeNames = cluster.VirtualCluster.nodeNamesGenerator(clusterName)
         nodes = []
 
         # Marked as not covered because of bug #122:
@@ -176,7 +183,7 @@ class VurmController(pb.Root):
         for provisioner in self.provisioners:
             count = size - len(nodes)
 
-            for node in provisioner.getNodes(count):
+            for node in provisioner.getNodes(count, nodeNames):
                 nodes.append(node.addCallback(resources.INode))
 
             got = len(nodes) - size + count
@@ -202,8 +209,8 @@ class VurmController(pb.Root):
         nodes = yield defer.gatherResults(nodes)
 
         # Create virtual cluster
-        virtualCluster = cluster.VirtualCluster(nodes)
-        self.clusters[virtualCluster.name] = virtualCluster
+        virtualCluster = cluster.VirtualCluster(nodes, name=clusterName)
+        self.clusters[clusterName] = virtualCluster
 
         self.log.debug('Updating SLURM configuration file and restarting ' \
                 'local daemon')

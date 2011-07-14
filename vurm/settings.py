@@ -39,7 +39,7 @@ def loadConfig(path=None, defaults=None):
     if defaults is None:
         defaults = DEFAULT_FILES
 
-    config = ConfigParser.SafeConfigParser()
+    config = ConfigParser.SafeConfigParser(allow_no_value=True)
 
     if defaults:
         config.read(defaults)

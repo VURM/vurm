@@ -13,10 +13,6 @@ dynamically adding physical and/or virtual resources to SLURM.
 # These are interfaces.
 # pylint: disable-msg=E0213,E0211
 
-# Shut PyLint to complain about undefined names in the logging module (the
-# __future__ import is not correctly handled).
-# pylint: disable-msg=E1101
-
 
 
 from zope.interface import Interface, Attribute
@@ -28,7 +24,7 @@ class IResourceProvisioner(Interface):  # pragma: no cover
     Base interface to be implemented by all provisioner classes.
     """
 
-    def getNodes(count):
+    def getNodes(count, **kwargs):
         """
         Creates *count* nodes and returns a **list of deferreds**, each one
         calling back with the respective INode instance as soon as it is ready
@@ -45,6 +41,16 @@ class IResourceProvisioner(Interface):  # pragma: no cover
         This allows to get a set of nodes guaranteed to have the necessary
         resources to be started and then defer to the vurm controller the
         decision of *when* they have to be started.
+
+        Additional keyword arguments can be passed to this method; the
+        implementation has to be able to use the needed arguments and ignore
+        the additional ones, by providing adequate fallbacks if a certain value
+        is not defined.
+
+        Keyword arguments are used to provide additional directives to the
+        provisioner, as for example a disk image to use to boot a virtual
+        machine. Such an argument would be ignored by a provisioner running
+        nodes on physical machines.
         """
 
 

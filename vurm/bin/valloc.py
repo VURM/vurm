@@ -47,8 +47,8 @@ def main():
 
         Prints the result to the standard output.
         """
-        print "You can now submit jobs to the virtual cluster by using the ' \
-                '--partition={0!r} option".format(name)
+        print 'You can now submit jobs to the virtual cluster by using the ' \
+                '--partition={0!r} option'.format(name)
     d.addCallback(gotName)
 
 

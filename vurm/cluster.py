@@ -32,6 +32,12 @@ The string to prefix to the generated cluster names.
 """
 
 
+NODE_NAME_PREFIX = 'nd-'
+"""
+The string to prefix to the generated cluster node names.
+"""
+
+
 
 class VirtualCluster(object):
     """
@@ -40,6 +46,18 @@ class VirtualCluster(object):
     """
 
     __clusterNames = set()
+
+
+    @staticmethod
+    def nodeNamesGenerator(clusterName):
+        clusterName = clusterName[len(CLUSTER_NAME_PREFIX):]
+        clusterName = '{0}{1}-{{0}}'.format(NODE_NAME_PREFIX, clusterName)
+
+        nodeCount = 0
+        while True:
+            yield clusterName.format(nodeCount)
+            nodeCount += 1
+
 
     @classmethod
     def generateClusterName(cls):
@@ -64,7 +82,7 @@ class VirtualCluster(object):
         return CLUSTER_NAME_PREFIX + name
 
 
-    def __init__(self, nodes):
+    def __init__(self, nodes, name=None):
         """
         Creates a new virtual cluster from the given node list. The items of
         the nodes list have to provide the vurm.resources.INode interface or
@@ -72,17 +90,15 @@ class VirtualCluster(object):
         them.
         """
 
-        self.name = VirtualCluster.generateClusterName()
+        if name is None:
+            self.name = VirtualCluster.generateClusterName()
+        else:
+            self.name = name
+
         self.nodes = nodes
         self.log = logging.Logger(__name__, system=self.name)
 
         self.log.info('New virtual cluster created')
-
-        width = len(str(len(nodes)))
-
-        for i, node in enumerate(nodes):
-            name = 'nd-{0}-{1:0{2}d}'.format(self.name[3:], i, width)
-            node.nodeName = name
 
 
     def getConfigEntry(self):
@@ -92,9 +108,7 @@ class VirtualCluster(object):
         a SLURM partition (and the relative nodes).
         """
 
-        width = len(str(len(self.nodes)))
-        nodenames = 'nd-{0}-[{2:0{3}d}-{1}]'.format(self.name[3:],
-                len(self.nodes) - 1, 0, width)
+        nodenames = 'nd-{0}-[0-{1}]'.format(self.name[3:], len(self.nodes) - 1)
 
         entries = [
             '# [{0}]'.format(self.name),

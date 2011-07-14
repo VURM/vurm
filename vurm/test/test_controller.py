@@ -43,7 +43,7 @@ class FakeProvisioner(object):
         self.nodeCount = nodeCount
         self.nodes = []
 
-    def getNodes(self, count):
+    def getNodes(self, count, _):
         if self.nodeCount is not None:
             count = min(self.nodeCount, count)
             self.nodeCount -= count

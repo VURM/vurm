@@ -49,8 +49,16 @@ def printFormatted(event, stream, severity=0):
     message = '\n'.join([indent + l for l in message.splitlines()])
     message = message.lstrip()
 
+    if 'printed' in event and event['printed']:
+        if event['printed'] == 1:
+            severity = 'STDOUT'
+        else:
+            severity = 'STDERR'
+    else:
+        severity = logging.getLevelName(eventSeverity)
+
     stream.write('{severity:>10s}: [{system}] {message}\n'.format(**{
-        'severity': logging.getLevelName(eventSeverity),
+        'severity': severity,
         'system': event['system'],
         'message': message,
     }))
@@ -63,20 +71,21 @@ class StdioOnnaStick(log.StdioOnnaStick, object):
     for each line written to it.
     """
 
-    def __init__(self, callback):
+    def __init__(self, callback, **kwargs):
         super(StdioOnnaStick, self).__init__(0)
         self.callback = callback
+        self.kwargs = kwargs
 
     def write(self, data):
         d = (self.buf + data).split('\n')
         self.buf = d[-1]
         messages = d[0:-1]
         for message in messages:
-            self.callback(message, printed=1)
+            self.callback(message, **self.kwargs)
 
     def writelines(self, lines):
         for line in lines:
-            self.callback(line, printed=1)
+            self.callback(line, **self.kwargs)
 
 
 
@@ -112,8 +121,8 @@ class Logger(object):
         NOTE: Using this method multiple times causes only the last loggin
               instance to receive the data.
         """
-        sys.stdout = StdioOnnaStick(self.info)
-        sys.stderr = StdioOnnaStick(self.error)
+        sys.stdout = StdioOnnaStick(self.info, printed=1)
+        sys.stderr = StdioOnnaStick(self.error, printed=2)
 
 
     def addObserver(self, observer, *args, **kwargs):
