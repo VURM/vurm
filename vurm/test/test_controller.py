@@ -117,6 +117,47 @@ class ControllerClusterDestroyTestCase(ControllerTestCaseBse):
 
 
     @defer.inlineCallbacks
+    def test_protocolDestroy(self):
+        ctrl = self.controllerWithProvisioners(None)
+        protocol = controller.VurmControllerProtocol()
+        protocol.instance = ctrl
+        
+        cluster = yield ctrl.createVirtualCluster(5)
+        result = yield protocol.destroyVirtualCluster(cluster.name)
+        
+        self.assertEquals(result, {})
+
+
+    @defer.inlineCallbacks
+    def test_protocolDestroyAll(self):
+        ctrl = self.controllerWithProvisioners(None)
+        protocol = controller.VurmControllerProtocol()
+        protocol.instance = ctrl
+        
+        cluster = yield ctrl.createVirtualCluster(5)
+        result = yield protocol.destroyVirtualCluster('all')
+        
+        self.assertEquals(result, {})
+
+
+    @defer.inlineCallbacks
+    def test_destroyAll(self):
+        provisioner = FakeProvisioner(10)
+
+        ctrl = controller.VurmController(self.config, [provisioner])
+        yield ctrl.createVirtualCluster(5)
+        yield ctrl.createVirtualCluster(5)
+
+        yield ctrl.destroyAllVirtualClusters()
+
+        for n in provisioner.nodes:
+            self.assertTrue(n.spawned)
+            self.assertTrue(n.released)
+
+        self.assertEquals(ctrl.clusters, {})
+
+
+    @defer.inlineCallbacks
     def test_reconfigurationError(self):
         provisioner = FakeProvisioner()
 
@@ -147,7 +188,6 @@ class ControllerClusterDestroyTestCase(ControllerTestCaseBse):
 
 class ControllerClusterCreationTestCase(ControllerTestCaseBse):
 
-
     def assertCreationSucceeds(self, ctrl, size, minSize=None):
         return ctrl.createVirtualCluster(size, minSize)
 
@@ -157,6 +197,14 @@ class ControllerClusterCreationTestCase(ControllerTestCaseBse):
             ctrl.createVirtualCluster(size, minSize),
             error.InsufficientResourcesException
         )
+
+
+    @defer.inlineCallbacks
+    def test_protocolCreation(self):
+        protocol = controller.VurmControllerProtocol()
+        protocol.instance = self.controllerWithProvisioners(None)
+        result = yield protocol.createVirtualCluster(5)
+        self.assertIn('clusterName', result)
 
 
     def test_fixedCreation(self):
