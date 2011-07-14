@@ -122,7 +122,7 @@ class VurmController(object):
         if clusterName == 'all':
             # Activated for debug only
             for clusterName in self.clusters.keys():
-                yield self.remote_destroyVirtualCluster(clusterName)
+                yield self.destroyVirtualCluster(clusterName)
             defer.returnValue(None)
 
         self.log.info('Got a virtual cluster shutdown request for {0!r}',
