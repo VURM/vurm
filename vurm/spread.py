@@ -8,7 +8,7 @@ from twisted.plugin import getPlugins
 
 
 
-class SingleInstanceAMPProtocolFactory(protocol.ServerFactory):
+class InstanceProtocolFactory(protocol.ServerFactory):
 
     def __init__(self, protocol, instance):
         self.protocol = protocol

@@ -36,8 +36,8 @@ def main():
     domainManager = remotevirt.DomainManager(reactor, config)
 
     # Publish daemon
-    factory = spread.SingleInstanceAMPProtocolFactory(
-            remotevirt.DomainManagerProtocol, domainManager)
+    factory = spread.InstanceProtocolFactory(remotevirt.DomainManagerProtocol,
+            domainManager)
 
     endpoint = config.get('vurmd-libvirt', 'endpoint')
     endpoint = endpoints.serverFromString(reactor, endpoint)
