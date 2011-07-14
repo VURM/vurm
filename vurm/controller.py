@@ -16,14 +16,17 @@ from vurm import logging, resources, error, cluster, commands
 class VurmControllerProtocol(amp.AMP):
 
     @commands.CreateVirtualCluster.responder
-    def createVirtualCluster(self, size, minSize):
+    def createVirtualCluster(self, size, minSize=None):
         d = self.instance.createVirtualCluster(size, minSize)
         return d.addCallback(lambda cluster: {'clusterName': cluster.name})
 
 
     @commands.DestroyVirtualCluster.responder
     def destroyVirtualCluster(self, clusterName):
-        d = self.instance.destroyVirtualCluster(clusterName)
+        if clusterName == 'all':
+            d = self.instance.destroyAllVirtualClusters()
+        else:
+            d = self.instance.destroyVirtualCluster(clusterName)
         return d.addCallback(lambda _: {})
 
 
@@ -108,6 +111,11 @@ class VurmController(object):
                         ' not be reconfigured (return code: {0})'.format(res))
 
 
+    def destroyAllVirtualClusters(self):
+        dl = [self.destroyVirtualCluster(c) for c in self.clusters.keys()]
+        return defer.DeferredList(dl).addCallback(lambda _: None)
+
+
     @defer.inlineCallbacks
     def destroyVirtualCluster(self, clusterName):
         """
@@ -119,11 +127,6 @@ class VurmController(object):
 
         Returns a deferred which fires as soon as the cluster is destroyed.
         """
-        if clusterName == 'all':
-            # Activated for debug only
-            for clusterName in self.clusters.keys():
-                yield self.destroyVirtualCluster(clusterName)
-            defer.returnValue(None)
 
         self.log.info('Got a virtual cluster shutdown request for {0!r}',
                 clusterName)
