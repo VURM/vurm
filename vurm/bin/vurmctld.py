@@ -10,7 +10,7 @@ import sys
 from twisted.internet import reactor, endpoints
 
 from vurm import logging, settings, controller, spread
-from vurm.provisioners import remotevirt  #, multilocal
+from vurm.provisioners import remotevirt  # , multilocal
 
 
 
