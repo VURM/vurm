@@ -6,8 +6,10 @@ Releases an already existing virtual cluster and all the related resources.
 
 import sys
 
-from twisted.spread import pb
-from twisted.internet import reactor, endpoints
+from twisted.protocols import amp
+from twisted.internet import reactor, endpoints, protocol
+
+from vurm import commands
 
 
 
@@ -18,15 +20,13 @@ def main():
     TODO: Implement an argument parser
     """
 
-    factory = pb.PBClientFactory()
+    factory = protocol.ClientFactory()
+    factory.protocol = amp.AMP
 
     # Create a new endpoint
     # TODO: Load this from the configuration
     endpoint = endpoints.TCP4ClientEndpoint(reactor, 'localhost', 8789)
-    endpoint.connect(factory)
-
-    d = factory.getRootObject()
-
+    d = endpoint.connect(factory)
 
     def gotController(controller, clusterName):
         """
@@ -35,9 +35,9 @@ def main():
         Returns a deferred which fires with the result of the
         ``destroyVirtualCluster`` operation on the remote controller.
         """
-        return controller.callRemote('destroyVirtualCluster', clusterName)
+        return controller.callRemote(commands.DestroyVirtualCluster,
+                clusterName=clusterName)
     d.addCallback(gotController, sys.argv[1])
-
 
     def gotResult(_):
         """
@@ -48,7 +48,6 @@ def main():
         print "The virtual cluster was correctly destroyed."
     d.addCallback(gotResult)
 
-
     def gotError(failure):
         """
         Called when the virtual cluster creation operation fails.
@@ -58,7 +57,6 @@ def main():
         print failure.value
         print failure
     d.addErrback(gotError)
-
 
     # Make sure to exit once done
     d.addBoth(lambda _: reactor.stop())
