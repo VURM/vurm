@@ -6,8 +6,10 @@ Creates a new virtual cluster and feeds it to SLURM.
 
 import sys
 
-from twisted.spread import pb
-from twisted.internet import reactor, endpoints
+from twisted.protocols import amp
+from twisted.internet import reactor, endpoints, protocol
+
+from vurm import commands
 
 
 
@@ -18,15 +20,13 @@ def main():
     TODO: Implement an argument parser
     """
 
-    factory = pb.PBClientFactory()
+    factory = protocol.ClientFactory()
+    factory.protocol = amp.AMP
 
     # Create a new endpoint
     # TODO: Load this from the configuration
     endpoint = endpoints.TCP4ClientEndpoint(reactor, 'localhost', 8789)
-    endpoint.connect(factory)
-
-    d = factory.getRootObject()
-
+    d = endpoint.connect(factory)
 
     def gotController(controller, numNodes, minNumNodes=None):
         """
@@ -35,12 +35,15 @@ def main():
         Returns a deferred which fires with the result of the
         ``createVirtualCluster`` operation on the remote controller.
         """
-        return controller.callRemote('createVirtualCluster', numNodes,
-                minNumNodes)
+        kwargs = {'size': numNodes}
+
+        if minNumNodes:
+            kwargs['minSize'] = minNumNodes
+
+        return controller.callRemote(commands.CreateVirtualCluster, **kwargs)
     d.addCallback(gotController, int(sys.argv[1]))
 
-
-    def gotName(name):
+    def gotResult(result):
         """
         Called when the virtual cluster creation operation succeeds with the
         name of the newly created cluster.
@@ -48,9 +51,8 @@ def main():
         Prints the result to the standard output.
         """
         print 'You can now submit jobs to the virtual cluster by using the ' \
-                '--partition={0!r} option'.format(name)
-    d.addCallback(gotName)
-
+                '--partition={0!r} option'.format(result['clusterName'])
+    d.addCallback(gotResult)
 
     def gotError(failure):
         """
@@ -61,7 +63,6 @@ def main():
         print failure.value
         print failure
     d.addErrback(gotError)
-
 
     # Make sure to exit once done
     d.addBoth(lambda _: reactor.stop())
