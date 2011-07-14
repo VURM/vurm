@@ -8,6 +8,21 @@ from twisted.plugin import getPlugins
 
 
 
+class SingleInstanceAMPProtocolFactory(protocol.ServerFactory):
+
+    def __init__(self, protocol, instance):
+        self.protocol = protocol
+        self.instance = instance
+
+
+    def buildProtocol(self, addr):
+        p = self.protocol()
+        p.instance = self.instance
+
+        return p
+
+
+
 class ProtocolUpdater(protocol.ReconnectingClientFactory):
 
     def __init__(self, endpoint):

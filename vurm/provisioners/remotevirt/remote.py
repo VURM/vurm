@@ -54,29 +54,20 @@ class DomainManagerProtocol(amp.AMP):
 
     @commands.CreateDomain.responder
     def createDomain(self, description):
-        d = self.factory.domainManager.createDomain(description)
+        d = self.instance.createDomain(description)
         return d.addCallback(lambda addr: {'hostname': addr})
 
 
     @commands.DestroyDomain.responder
     def destroyDomain(self, nodeName):
-        d = self.factory.domainManager.destroyDomain(nodeName)
+        d = self.instance.destroyDomain(nodeName)
         return d.addCallback(lambda _: {})
 
 
     @commands.SpawnSlurmDaemon.responder
     def spawnDaemon(self, nodeName, slurmConfig):
-        d = self.factory.domainManager.spawnDaemon(nodeName, slurmConfig)
+        d = self.instance.spawnDaemon(nodeName, slurmConfig)
         return d.addCallback(lambda _: {})
-
-
-
-class DomainManagerFactory(protocol.ServerFactory):
-
-    protocol = DomainManagerProtocol
-
-    def __init__(self, domainManager):
-        self.domainManager = domainManager
 
 
 

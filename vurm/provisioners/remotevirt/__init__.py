@@ -1,5 +1,5 @@
 from .provisioner import Provisioner
-from .remote import DomainManager, DomainManagerFactory
+from .remote import DomainManager, DomainManagerProtocol
 
 
-__all__ = ['Provisioner', 'DomainManager', 'DomainManagerFactory', ]
+__all__ = ['Provisioner', 'DomainManager', 'DomainManagerProtocol', ]
