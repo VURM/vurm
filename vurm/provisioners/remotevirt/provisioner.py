@@ -21,7 +21,6 @@ class VirtualNode(object):
         self.provisioner = provisioner
         self.nodeName = nodeName
         self.hostname = hostname
-        self.port = 6818  # Default SlurmdPort setting
 
 
     @defer.inlineCallbacks
@@ -44,8 +43,8 @@ class VirtualNode(object):
 
 
     def getConfigEntry(self):
-        return 'NodeName={self.nodeName} NodeHostname={self.hostname} ' \
-                'Port={self.port}'.format(self=self)
+        return 'NodeName={0} NodeHostname={1}'.format(self.nodeName,
+                self.hostname)
 
 
 
