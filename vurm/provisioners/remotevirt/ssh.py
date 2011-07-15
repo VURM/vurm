@@ -156,16 +156,38 @@ class FileTransferChannel(channel.SSHChannel):
 
 class SFTPClient(filetransfer.FileTransferClient):
 
-    # Patch twisted with this patch to obtain a working solution:
-    # http://twistedmatrix.com/trac/ticket/3009
-
     chunkSize = 1024
+
 
     def __init__(self, fh, remotePath, deferred):
         filetransfer.FileTransferClient.__init__(self)
         self.fh = fh
         self.remotePath = remotePath
         self.deferred = deferred
+
+
+    def packet_STATUS(self, data):
+        # TODO: Remove this as soon as #3009 is released as part of mainstream
+        #       twisted distributions (keep an eye on debian's version).
+        #       Reference: http://twistedmatrix.com/trac/ticket/3009
+        d, data = self._parseRequest(data)
+        code, = struct.unpack('!L', data[:4])
+        data = data[4:]
+
+        if data:
+            msg, data = filetransfer.getNS(data)
+            lang = filetransfer.getNS(data)
+        else:
+            msg, lang = None, None
+
+        if code == filetransfer.FX_OK:
+            d.callback((msg, lang))
+        elif code == filetransfer.FX_EOF:
+            d.errback(EOFError(msg))
+        elif code == filetransfer.FX_OP_UNSUPPORTED:
+            d.errback(NotImplementedError(msg))
+        else:
+            d.errback(filetransfer.SFTPError(code, msg, lang))
 
 
     @defer.inlineCallbacks
