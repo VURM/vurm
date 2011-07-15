@@ -125,6 +125,19 @@ class ReconnectingConnectionsPool(object):
         return flattenedEndpoints
 
 
+    def stop(self):
+        def stop(connection, factory):
+            factory.stopTrying()
+            connection.transport.loseConnection()
+        
+        dl = []
+        
+        for factory in self.factories:
+            dl.append(factory.getConnection().addCallback(stop, factory))
+        
+        return defer.DeferredList(dl).addCallback(lambda _: None)
+
+
     def start(self):
         assert not self.factories
 
