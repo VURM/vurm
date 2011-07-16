@@ -1,8 +1,9 @@
 
 import struct
 
-from twisted.conch.ssh import transport, connection, userauth, channel, common, filetransfer
-from twisted.internet import defer
+from twisted.conch.ssh import transport, connection, userauth, channel, common
+from twisted.conch.ssh import filetransfer
+from twisted.internet import defer, error
 
 
 
@@ -20,6 +21,26 @@ class ClientTransport(transport.SSHClientTransport):
         self.key = key
         self.serviceRequests = []
         self.service = ClientConnection()
+        self.disconnectionDeferred = None
+        self.connectionAlreadyLost = False
+
+
+    def connectionLost(self, reason):
+        self.connectionAlreadyLost = True
+        transport.SSHClientTransport.connectionLost(self, reason)
+
+        if self.disconnectionDeferred:
+            if reason.check(error.ConnectionDone):
+                self.disconnectionDeferred.callback(None)
+            else:
+                self.disconnectionDeferred.errback(reason)
+
+    def disconnect(self):
+        if self.connectionAlreadyLost:
+            return defer.succeed(None)
+        self.disconnectionDeferred = defer.Deferred()
+        self.loseConnection()
+        return self.disconnectionDeferred
 
 
     def transferFile(self, fh, remotePath):
@@ -55,12 +76,7 @@ class PublickeyAuth(userauth.SSHUserAuthClient):
         self.key = key
 
 
-    def getPassword(self, prompt=None):
-        return
-
-
     def getPublicKey(self):
-        print self.key.public().toString('OPENSSH')
         return self.key.public().blob()
 
 
@@ -144,10 +160,8 @@ class FileTransferChannel(channel.SSHChannel):
 
     @defer.inlineCallbacks
     def channelOpen(self, data):
-        print "CHANNEL OPENED"
         yield self.conn.sendRequest(self, 'subsystem', common.NS('sftp'),
                 wantReply=1)
-        print "GOT SUBSYSTEM"
         self.client = SFTPClient(self.fh, self.remotePath, self.deferred)
         self.client.makeConnection(self)
         self.dataReceived = self.client.dataReceived
@@ -166,7 +180,7 @@ class SFTPClient(filetransfer.FileTransferClient):
         self.deferred = deferred
 
 
-    def packet_STATUS(self, data):
+    def packet_STATUS(self, data):  # pragma: no cover
         # TODO: Remove this as soon as #3009 is released as part of mainstream
         #       twisted distributions (keep an eye on debian's version).
         #       Reference: http://twistedmatrix.com/trac/ticket/3009
@@ -207,4 +221,5 @@ class SFTPClient(filetransfer.FileTransferClient):
                 offset += self.chunkSize
 
         yield defer.maybeDeferred(remoteFile.close)
+        self.transport.loseConnection()
         self.deferred.callback(None)

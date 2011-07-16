@@ -87,6 +87,16 @@ class LoggingTestCase(unittest.TestCase):
                 stream=out, severity=30)
         self.assertTrue(out.getvalue())
 
+        out = StringIO()
+        logging.printFormatted({'system': '-', 'message': '', 'printed': 1},
+                stream=out, severity=0)
+        self.assertTrue(out.getvalue())
+
+        out = StringIO()
+        logging.printFormatted({'system': '-', 'message': '', 'printed': 2},
+                stream=out, severity=0)
+        self.assertTrue(out.getvalue())
+
 
     def test_exception(self):
         try:

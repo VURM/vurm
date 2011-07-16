@@ -1,5 +1,7 @@
 
 
+import os
+
 from twisted.internet import defer, threads, utils, protocol, endpoints
 from twisted.python import filepath
 from twisted.protocols import basic, amp
@@ -7,8 +9,8 @@ from twisted.conch.ssh import keys
 
 from cStringIO import StringIO
 
-from vurm import logging, error, libvirt
-from vurm.provisioners.remotevirt import ssh, commands
+from vurm import logging, error
+from vurm.provisioners.remotevirt import ssh, commands, libvirt
 
 
 
@@ -39,8 +41,9 @@ class IPReceiver(basic.LineReceiver):
     def sendKey(self):
         self.sendLine(self.key.public().toString('OPENSSH'))
         # Callback only when the key was effectively written to the guest
-        self.factory.reactor.callLater(1, self.deferred.callback, self.address)
         self.transport.loseConnection()
+        self.factory.port.stopListening()
+        self.factory.reactor.callLater(1, self.deferred.callback, self.address)
 
 
     def lineReceived(self, address):
@@ -71,7 +74,7 @@ class DomainManagerProtocol(amp.AMP):
 
 
 
-class DomainManager(amp.AMP):
+class DomainManager(object):
     """
     Deamon which is intended to run on a physical node and can create new
     virtual domains when remotely requested.
@@ -107,7 +110,7 @@ class DomainManager(amp.AMP):
                 interface='127.0.0.1')
         factory = IPReceiverFactory(self.reactor, key, d)
         port = yield endpoint.listen(factory)
-
+        factory.port = port
         defer.returnValue((d, port.getHost().port))
 
 
@@ -126,9 +129,10 @@ class DomainManager(amp.AMP):
         self.log.info('Creating new copy-on-write image based on {0} at {1}',
                 original.path, copy.path)
 
-        args = ['create', '-f', 'qcow2', '-b', original.path, copy.path]
-        stdout, stderr, exitCode = yield utils.getProcessOutputAndValue(
-                '/usr/bin/qemu-img', args)
+        cmd = self.config.get('vurmd-libvirt', 'clonebin').format(
+                source=original.path, destination=copy.path)
+        stdout, stderr, exitCode = yield utils.getProcessOutputAndValue('sh',
+                ['-c', cmd], env=os.environ)
 
         if exitCode:
             self.log.error('Image creation failed, qemu-img exited with ' \
@@ -145,8 +149,7 @@ class DomainManager(amp.AMP):
 
         def createInThread(config):
             with self.getHypervisor() as conn:
-                domain = conn.createLinux(str(config), 0)
-                return libvirt.DomainDescription(domain.XMLDesc(0))
+                conn.createLinux(str(config), 0)
         yield threads.deferToThread(createInThread, config)
 
         self.log.info('Domain created, waiting for guest OS to come up')
@@ -202,7 +205,7 @@ class DomainManager(amp.AMP):
 
 
     @defer.inlineCallbacks
-    def spawnDaemon(self, nodeName, config, mungeKey=None):
+    def spawnDaemon(self, nodeName, config):
         self.log.info('Spawning domain')
 
         hostname = self.addresses[nodeName]
@@ -216,17 +219,20 @@ class DomainManager(amp.AMP):
         creator = protocol.ClientCreator(self.reactor, ssh.ClientTransport,
                 username, key)
 
-        service = yield creator.connectTCP(hostname, 22)
+        service = yield creator.connectTCP(hostname,
+                int(self.config.get('vurmd-libvirt', 'sshport')))
 
-        yield service.executeCommand('mkdir -p /usr/local/etc')
+        remoteSlurmConf = self.config.get('vurmd-libvirt', 'slurmconfig')
+        remoteSlurmConf = filepath.FilePath(remoteSlurmConf)
 
-        yield service.transferFile(StringIO(config),
-                filepath.FilePath('/usr/local/etc/slurm.conf'))
+        yield service.executeCommand(
+                'mkdir -p {0}'.format(
+                        remoteSlurmConf.parent().path))
 
-        if mungeKey is not None:
-            yield service.transferFile(StringIO(mungeKey),
-                    filepath.FilePath('/etc/munge/munge.key'))
+        yield service.transferFile(StringIO(config), remoteSlurmConf)
 
-        yield service.executeCommand('slurmd -N {0}'.format(nodeName))
+        yield service.executeCommand(
+                self.config.get('vurmd-libvirt', 'slurmd').format(
+                        nodeName=nodeName))
 
-        service.loseConnection()
+        yield service.disconnect()

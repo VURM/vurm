@@ -27,7 +27,7 @@ class SettingsTestCase(unittest.TestCase):
         cluster.CLUSTER_NAME_PREFIX = ''
         cluster.NODE_NAME_PREFIX = ''
         names = cluster.VirtualCluster.nodeNamesGenerator('')
-        
+
         for i in range(10):
             self.assertEquals(i, int(next(names)[1:]))
 
@@ -46,6 +46,6 @@ class SettingsTestCase(unittest.TestCase):
 
         name = names.pop()
         self.assertEquals(name, cluster.VirtualCluster.generateClusterName())
-        
+
         name = names.pop()
         self.assertEquals(name, cluster.VirtualCluster([]).name)

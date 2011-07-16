@@ -5,8 +5,6 @@ Abstractions to make working with libvirt feel more pythonic.
 from __future__ import absolute_import
 
 import libvirt
-import uuid
-from libvirt import libvirtError as LibvirtError
 
 from lxml import etree
 
@@ -21,13 +19,15 @@ from twisted.python import filepath
 __all__ = ['open', 'DomainDescription', 'LibvirtError']
 
 
+LibvirtError = libvirt.libvirtError
+
+
 class LibvirtConnectionContextManager(object):
     def __init__(self, connectionURI):
         self.connectionURI = connectionURI
-        self.connection = None
+        self.connection = libvirt.open(self.connectionURI)
 
     def __enter__(self):
-        self.connection = libvirt.open(self.connectionURI)
         return self.connection
 
     def __exit__(self, exc_type, exc_val, exc_tb):
@@ -44,33 +44,6 @@ class DomainDescription(object):
             self.document = etree.fromstring(xml)
         else:
             self.document = xml
-
-
-    def getUUID(self):
-        try:
-            return self.document.find('uuid').text
-        except AttributeError:
-            return None
-
-
-    def setUUID(self, uuid):
-        element = self.document.find('uuid')
-
-        if element is None:
-            element = etree.Element("uuid")
-            self.document.append(element)
-
-        element.text = uuid
-
-
-    def getOrSetUUID(self):
-        domainUUID = self.getUUID()
-
-        if not domainUUID:
-            domainUUID = str(uuid.uuid1())
-            self.setUUID(domainUUID)
-
-        return domainUUID
 
 
     def getName(self):

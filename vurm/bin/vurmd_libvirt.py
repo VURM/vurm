@@ -4,7 +4,7 @@ import os
 from twisted.internet import reactor, endpoints
 
 from vurm import settings, logging, spread
-from vurm.provisioners import remotevirt
+from vurm.provisioners.remotevirt import remote
 
 
 
@@ -33,10 +33,10 @@ def main():
     log.captureStdout()
 
     # Build libvirt daemon
-    domainManager = remotevirt.DomainManager(reactor, config)
+    domainManager = remote.DomainManager(reactor, config)
 
     # Publish daemon
-    factory = spread.InstanceProtocolFactory(remotevirt.DomainManagerProtocol,
+    factory = spread.InstanceProtocolFactory(remote.DomainManagerProtocol,
             domainManager)
 
     endpoint = config.get('vurmd-libvirt', 'endpoint')

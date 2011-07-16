@@ -1,28 +1,25 @@
 
 
 import ConfigParser
-import random
 
 from twisted.trial import unittest
 from twisted.python import filepath
-from twisted.protocols import amp
-from twisted.internet import reactor, protocol, endpoints, defer
+from twisted.internet import reactor, endpoints, defer
 
-from vurm.provisioners.remotevirt import provisioner, commands
-from vurm.provisioners import remotevirt
-from vurm import resources, spread
+from vurm.provisioners.remotevirt import provisioner, remote
+from vurm import spread
 
 
 
 DOMAIN_CONFIG = """<domain>
-	<name>This will be replaced with the unique domain name</name>
-	<devices>
-		<disk type="file" device="disk">
-			<driver name="qemu" type="qcow2"/>
-			<source file="/home/garetjax/images/debian-base.qcow2"/>
-			<target dev="vda" bus="virtio"/>
-		</disk>
-	</devices>
+    <name>This will be replaced with the unique domain name</name>
+    <devices>
+        <disk type="file" device="disk">
+            <driver name="qemu" type="qcow2"/>
+            <source file="/home/garetjax/images/debian-base.qcow2"/>
+            <target dev="vda" bus="virtio"/>
+        </disk>
+    </devices>
 </domain>"""
 
 
@@ -57,11 +54,11 @@ class FakeDomainManager(object):
 
 
 class VirtualNodeTestCase(unittest.TestCase):
-    
+
     def test_config(self):
         node = provisioner.VirtualNode(None, None, 'node-a', 'localhost')
         config = node.getConfigEntry()
-        
+
         self.assertEquals('NodeName=node-a NodeHostname=localhost', config)
 
 
@@ -101,7 +98,7 @@ class ProvisionerTestCase(unittest.TestCase):
     @defer.inlineCallbacks
     def startListening(self, manager, count=1):
         factory = spread.InstanceProtocolFactory(
-                remotevirt.DomainManagerProtocol, manager)
+                remote.DomainManagerProtocol, manager)
         endpoint = endpoints.TCP4ServerEndpoint(reactor, 0)
 
         servers = []
@@ -120,7 +117,7 @@ class ProvisionerTestCase(unittest.TestCase):
         manager = FakeDomainManager()
         endpoints = yield self.startListening(manager, count)
         self.config.set('libvirt', 'nodes', endpoints)
-        prov = remotevirt.Provisioner(reactor, self.config)
+        prov = provisioner.Provisioner(reactor, self.config)
         self.provisioners.append(prov)
         defer.returnValue((prov, manager))
 

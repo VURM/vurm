@@ -1,10 +1,9 @@
 
 import re
 import functools
+import itertools
 
 from twisted.internet import defer, endpoints, protocol
-from twisted.internet.interfaces import IStreamClientEndpointStringParser
-from twisted.plugin import getPlugins
 
 
 
@@ -82,81 +81,51 @@ class ReconnectingConnectionsPool(object):
     def __init__(self, reactor, protocol, endpoints):
         self.reactor = reactor
         self.protocol = protocol
-        self.endpoints = []
-        self.factories = []
-        self.current = 0
+        self.endpoints = {}
+        self.factories = {}
 
         for endpoint in endpoints:
-            self.endpoints += self.parseEndpoint(endpoint)
+            self.endpoints.update(self.parseEndpoint(endpoint))
 
-
-    def clientFromArgs(self, args, kwargs):
-        aname = args.pop(0)
-        name = aname.upper()
-
-        for plugin in getPlugins(IStreamClientEndpointStringParser):
-            if plugin.prefix.upper() == name:
-                return plugin.parseStreamClient(*args, **kwargs)
-
-        if name not in endpoints._clientParsers:
-            raise ValueError("Unknown endpoint type: %r" % (aname,))
-
-        kwargs = endpoints._clientParsers[name](*args, **kwargs)
-
-        return endpoints._endpointClientFactories[name](self.reactor, **kwargs)
+        self.endpointsRoundRobin = itertools.cycle(self.endpoints.keys())
 
 
     def parseEndpoint(self, endpoint):
-        args, kwargs = endpoints._parse(endpoint)
-
-        match = re.match(r'(.+)\[(\d+)-(\d+)\]$', kwargs['host'])
+        match = re.match(r'(.*?host=[a-zA-Z0-9_\.-]+)\[(\d+)-(\d+)\](.*)$',
+                endpoint)
 
         if match is None:
-            return [endpoints.clientFromString(self.reactor, endpoint)]
+            client = endpoints.clientFromString(self.reactor, endpoint)
+            return {endpoint: client}
 
-        flattenedEndpoints = []
+        flattenedEndpoints = {}
 
-        host, start, end = match.groups()
+        prefix, start, end, suffix = match.groups()
 
         for i in range(int(start), int(end) + 1):
-            kwargs['host'] = '{0}{1:0{2}d}'.format(host, i, len(start))
-            flattenedEndpoints.append(self.clientFromArgs(args + [], kwargs))
+            endpoint = '{0}{1:0{3}d}{2}'.format(prefix, i, suffix, len(start))
+            client = endpoints.clientFromString(self.reactor, endpoint)
+            flattenedEndpoints[endpoint] = client
 
         return flattenedEndpoints
 
 
     def stop(self):
-        def stop(connection, factory):
+        for factory in self.factories.itervalues():
             factory.stopTrying()
-            connection.transport.loseConnection()
-        
-        dl = []
-        
-        for factory in self.factories:
-            dl.append(factory.getConnection().addCallback(stop, factory))
-        
-        return defer.DeferredList(dl).addCallback(lambda _: None)
+            if factory.protocolInstance:
+                factory.protocolInstance.transport.loseConnection()
 
 
     def start(self):
         assert not self.factories
 
-        for endpoint in self.endpoints:
-            factory = ProtocolUpdater(endpoint)
+        for endpoint, client in self.endpoints.iteritems():
+            factory = ProtocolUpdater(client)
             factory.protocol = self.protocol
-            self.factories.append(factory)
-            self.reactor.connectTCP(endpoint._host, endpoint._port, factory)
-
-
-    def getConnection(self, endpoint):
-        return self.factories[self.endpoints.index(endpoint)].getConnection()
+            self.factories[endpoint] = factory
+            self.reactor.connectTCP(client._host, client._port, factory)
 
 
     def getNextConnection(self):
-        try:
-            return self.factories[self.current].getConnection()
-        except IndexError:
-            self.current = 0
-            return self.factories[self.current].getConnection()
-        finally:
-            self.current += 1
+        return self.factories[next(self.endpointsRoundRobin)].getConnection()

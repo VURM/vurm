@@ -121,10 +121,10 @@ class ControllerClusterDestroyTestCase(ControllerTestCaseBse):
         ctrl = self.controllerWithProvisioners(None)
         protocol = controller.VurmControllerProtocol()
         protocol.instance = ctrl
-        
+
         cluster = yield ctrl.createVirtualCluster(5)
         result = yield protocol.destroyVirtualCluster(cluster.name)
-        
+
         self.assertEquals(result, {})
 
 
@@ -133,10 +133,10 @@ class ControllerClusterDestroyTestCase(ControllerTestCaseBse):
         ctrl = self.controllerWithProvisioners(None)
         protocol = controller.VurmControllerProtocol()
         protocol.instance = ctrl
-        
-        cluster = yield ctrl.createVirtualCluster(5)
+
+        yield ctrl.createVirtualCluster(5)
         result = yield protocol.destroyVirtualCluster('all')
-        
+
         self.assertEquals(result, {})
 
 
