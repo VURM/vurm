@@ -47,7 +47,8 @@ class ProvisionerTestCase(unittest.TestCase):
         def adapt(node):
             return resources.INode(node)
 
-        nodeCallbacks = provisioner.getNodes(20)
+        nodeNames = (str(i) for i in range(20))
+        nodeCallbacks = provisioner.getNodes(20, nodeNames)
 
         self.assertEquals(len(nodeCallbacks), 20)
 
@@ -75,8 +76,7 @@ class LocalNodeTestCase(unittest.TestCase):
             self.reconfigureScript, command, self.tmpConfig.path)
         self.config.set('multilocal', 'slurmd', cmd)
 
-        node = multilocal.LocalNode(cmd, 1, reactor)
-        node.nodeName = nodeName
+        node = multilocal.LocalNode(nodeName, cmd, 1, reactor)
 
         return node
 

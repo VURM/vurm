@@ -45,3 +45,17 @@ class InvalidClusterName(RemoteVurmException):
     Raised when an operation which requires a cluster name fails because the
     given cluster name is either invalid or was not found.
     """
+
+
+
+class UnknownDomain(RemoteVurmException):
+    """
+    Raised when an unknown domain is registered or requested.
+    """
+
+
+
+class ConnectError(RemoteVurmException):
+    """
+    Raised when a connection attempt fails.
+    """

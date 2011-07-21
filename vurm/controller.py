@@ -6,14 +6,35 @@ VURM controller daemon implementation and support classes.
 
 import os
 
-from twisted.spread import pb
 from twisted.internet import defer, utils
+from twisted.protocols import amp
 
-from vurm import logging, resources, error, cluster
+from vurm import logging, resources, error, cluster, commands
 
 
 
-class VurmController(pb.Root):
+class VurmControllerProtocol(amp.AMP):
+
+    @commands.CreateVirtualCluster.responder
+    def createVirtualCluster(self, size, minSize=None):
+        d = self.instance.createVirtualCluster(size, minSize)
+        return d.addCallback(lambda cluster: {'clusterName': cluster.name})
+
+
+    @commands.DestroyAllVirtualClusters.responder
+    def destroyAllVirtualClusters(self):
+        d = self.instance.destroyAllVirtualClusters()
+        return d.addCallback(lambda _: {})
+
+
+    @commands.DestroyVirtualCluster.responder
+    def destroyVirtualCluster(self, clusterName):
+        d = self.instance.destroyVirtualCluster(clusterName)
+        return d.addCallback(lambda _: {})
+
+
+
+class VurmController(object):
     """
     Perspective broker root for the vurm controller. This is the base instance
     which will be exposed over the network using the configured endpoint.
@@ -93,8 +114,13 @@ class VurmController(pb.Root):
                         ' not be reconfigured (return code: {0})'.format(res))
 
 
+    def destroyAllVirtualClusters(self):
+        dl = [self.destroyVirtualCluster(c) for c in self.clusters.keys()]
+        return defer.DeferredList(dl).addCallback(lambda _: None)
+
+
     @defer.inlineCallbacks
-    def remote_destroyVirtualCluster(self, clusterName):
+    def destroyVirtualCluster(self, clusterName):
         """
         Destroys the virtual cluster named by ``clusterName`` parameter.
 
@@ -141,7 +167,7 @@ class VurmController(pb.Root):
 
 
     @defer.inlineCallbacks
-    def remote_createVirtualCluster(self, size, minSize=None):
+    def createVirtualCluster(self, size, minSize=None):
         """
         Creates a new virtual cluster with ``size`` nodes. If there are not
         enough resources, the cluster is still created if at least ``minSize``
@@ -169,6 +195,8 @@ class VurmController(pb.Root):
         self.log.info('Got a new virtual cluster request for {0} nodes ' \
                 '(minimum: {1})', size, minSize)
 
+        clusterName = cluster.VirtualCluster.generateClusterName()
+        nodeNames = cluster.VirtualCluster.nodeNamesGenerator(clusterName)
         nodes = []
 
         # Marked as not covered because of bug #122:
@@ -176,7 +204,7 @@ class VurmController(pb.Root):
         for provisioner in self.provisioners:
             count = size - len(nodes)
 
-            for node in provisioner.getNodes(count):
+            for node in provisioner.getNodes(count, nodeNames):
                 nodes.append(node.addCallback(resources.INode))
 
             got = len(nodes) - size + count
@@ -202,8 +230,8 @@ class VurmController(pb.Root):
         nodes = yield defer.gatherResults(nodes)
 
         # Create virtual cluster
-        virtualCluster = cluster.VirtualCluster(nodes)
-        self.clusters[virtualCluster.name] = virtualCluster
+        virtualCluster = cluster.VirtualCluster(nodes, name=clusterName)
+        self.clusters[clusterName] = virtualCluster
 
         self.log.debug('Updating SLURM configuration file and restarting ' \
                 'local daemon')
@@ -236,4 +264,4 @@ class VurmController(pb.Root):
         self.log.info('Virtual cluster creation complete, returning to caller')
 
         # Return cluster to the caller
-        defer.returnValue(virtualCluster.name)
+        defer.returnValue(virtualCluster)

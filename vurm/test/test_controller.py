@@ -43,7 +43,7 @@ class FakeProvisioner(object):
         self.nodeCount = nodeCount
         self.nodes = []
 
-    def getNodes(self, count):
+    def getNodes(self, count, _):
         if self.nodeCount is not None:
             count = min(self.nodeCount, count)
             self.nodeCount -= count
@@ -98,9 +98,9 @@ class ControllerClusterDestroyTestCase(ControllerTestCaseBse):
         provisioner = FakeProvisioner(5)
 
         ctrl = controller.VurmController(self.config, [provisioner])
-        name = yield ctrl.remote_createVirtualCluster(5)
+        cluster = yield ctrl.createVirtualCluster(5)
 
-        yield ctrl.remote_destroyVirtualCluster(name)
+        yield ctrl.destroyVirtualCluster(cluster.name)
 
         for n in provisioner.nodes:
             self.assertTrue(n.spawned)
@@ -111,9 +111,50 @@ class ControllerClusterDestroyTestCase(ControllerTestCaseBse):
         ctrl = controller.VurmController(self.config, ())
 
         return self.failUnlessFailure(
-            ctrl.remote_destroyVirtualCluster('somename'),
+            ctrl.destroyVirtualCluster('somename'),
             error.InvalidClusterName
         )
+
+
+    @defer.inlineCallbacks
+    def test_protocolDestroy(self):
+        ctrl = self.controllerWithProvisioners(None)
+        protocol = controller.VurmControllerProtocol()
+        protocol.instance = ctrl
+
+        cluster = yield ctrl.createVirtualCluster(5)
+        result = yield protocol.destroyVirtualCluster(cluster.name)
+
+        self.assertEquals(result, {})
+
+
+    @defer.inlineCallbacks
+    def test_protocolDestroyAll(self):
+        ctrl = self.controllerWithProvisioners(None)
+        protocol = controller.VurmControllerProtocol()
+        protocol.instance = ctrl
+
+        yield ctrl.createVirtualCluster(5)
+        result = yield protocol.destroyVirtualCluster('all')
+
+        self.assertEquals(result, {})
+
+
+    @defer.inlineCallbacks
+    def test_destroyAll(self):
+        provisioner = FakeProvisioner(10)
+
+        ctrl = controller.VurmController(self.config, [provisioner])
+        yield ctrl.createVirtualCluster(5)
+        yield ctrl.createVirtualCluster(5)
+
+        yield ctrl.destroyAllVirtualClusters()
+
+        for n in provisioner.nodes:
+            self.assertTrue(n.spawned)
+            self.assertTrue(n.released)
+
+        self.assertEquals(ctrl.clusters, {})
 
 
     @defer.inlineCallbacks
@@ -121,13 +162,13 @@ class ControllerClusterDestroyTestCase(ControllerTestCaseBse):
         provisioner = FakeProvisioner()
 
         ctrl = controller.VurmController(self.config, [provisioner])
-        name = yield ctrl.remote_createVirtualCluster(5)
+        cluster = yield ctrl.createVirtualCluster(5)
 
         cmd = 'python {0} fail'.format(self.reconfigureScript)
         self.config.set('vurmctld', 'reconfigure', cmd)
 
         try:
-            yield ctrl.remote_destroyVirtualCluster(name)
+            yield ctrl.destroyVirtualCluster(cluster.name)
         except error.ReconfigurationError:
             for n in provisioner.nodes:
                 self.assertTrue(n.spawned)
@@ -135,7 +176,7 @@ class ControllerClusterDestroyTestCase(ControllerTestCaseBse):
 
             # Cluster shall not exist anymore
             yield self.failUnlessFailure(
-                ctrl.remote_destroyVirtualCluster(name),
+                ctrl.destroyVirtualCluster(cluster.name),
                 error.InvalidClusterName
             )
 
@@ -147,16 +188,23 @@ class ControllerClusterDestroyTestCase(ControllerTestCaseBse):
 
 class ControllerClusterCreationTestCase(ControllerTestCaseBse):
 
-
     def assertCreationSucceeds(self, ctrl, size, minSize=None):
-        return ctrl.remote_createVirtualCluster(size, minSize)
+        return ctrl.createVirtualCluster(size, minSize)
 
 
     def assertCreationFails(self, ctrl, size, minSize=None):
         return self.failUnlessFailure(
-            ctrl.remote_createVirtualCluster(size, minSize),
+            ctrl.createVirtualCluster(size, minSize),
             error.InsufficientResourcesException
         )
+
+
+    @defer.inlineCallbacks
+    def test_protocolCreation(self):
+        protocol = controller.VurmControllerProtocol()
+        protocol.instance = self.controllerWithProvisioners(None)
+        result = yield protocol.createVirtualCluster(5)
+        self.assertIn('clusterName', result)
 
 
     def test_fixedCreation(self):
@@ -207,7 +255,7 @@ class ControllerClusterCreationTestCase(ControllerTestCaseBse):
         provisioner = FakeProvisioner()
 
         ctrl = controller.VurmController(self.config, [provisioner])
-        yield ctrl.remote_createVirtualCluster(5)
+        yield ctrl.createVirtualCluster(5)
 
         self.assertEquals(5, len(provisioner.nodes))
 
@@ -217,7 +265,7 @@ class ControllerClusterCreationTestCase(ControllerTestCaseBse):
         provisioner = FakeProvisioner()
 
         ctrl = controller.VurmController(self.config, [provisioner])
-        yield ctrl.remote_createVirtualCluster(5)
+        yield ctrl.createVirtualCluster(5)
 
         for n in provisioner.nodes:
             self.assertTrue(n.spawned)
@@ -231,7 +279,7 @@ class ControllerClusterCreationTestCase(ControllerTestCaseBse):
         ctrl = controller.VurmController(self.config, [provisioner])
 
         try:
-            yield ctrl.remote_createVirtualCluster(10)
+            yield ctrl.createVirtualCluster(10)
         except error.InsufficientResourcesException:
             for n in provisioner.nodes:
                 self.assertFalse(n.spawned)
@@ -251,7 +299,7 @@ class ControllerClusterCreationTestCase(ControllerTestCaseBse):
         ctrl = controller.VurmController(self.config, [provisioner])
 
         try:
-            yield ctrl.remote_createVirtualCluster(5)
+            yield ctrl.createVirtualCluster(5)
         except error.ReconfigurationError:
             for n in provisioner.nodes:
                 self.assertFalse(n.spawned)

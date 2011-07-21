@@ -1,19 +1,12 @@
-"""
-Runs the vurm controller daemon.
-"""
-
-
-
 import argparse
-import os
 import sys
+import os
 
 from twisted.internet import reactor, endpoints
 from twisted.python import filepath
 
-from vurm import logging, settings, controller, spread
-#from vurm.provisioners import multilocal
-from vurm.provisioners.remotevirt import provisioner as remotevirt
+from vurm import settings, logging, spread
+from vurm.provisioners.remotevirt import remote
 
 
 
@@ -23,7 +16,6 @@ def main():
 
     TODO: Implement an argument parser
     """
-
     parser = argparse.ArgumentParser(description='VURM libvirt helper daemon.')
     parser.add_argument('-c', '--config', type=filepath.FilePath, 
             # action='append', 
@@ -42,17 +34,14 @@ def main():
     log.addObserver(logging.printFormatted, sys.stdout, severity=loglevel)
     log.captureStdout()
 
-    # Build controller
-    ctld = controller.VurmController(config, [
-        remotevirt.Provisioner(reactor, config),
-        #multilocal.Provisioner(reactor, config),
-    ])
+    # Build libvirt daemon
+    domainManager = remote.DomainManager(reactor, config)
 
     # Publish daemon
-    factory = spread.InstanceProtocolFactory(controller.VurmControllerProtocol,
-            ctld)
+    factory = spread.InstanceProtocolFactory(remote.DomainManagerProtocol,
+            domainManager)
 
-    endpoint = config.get('vurmctld', 'endpoint')
+    endpoint = config.get('vurmd-libvirt', 'endpoint')
     endpoint = endpoints.serverFromString(reactor, endpoint)
 
     endpoint.listen(factory)

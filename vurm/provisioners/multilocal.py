@@ -20,7 +20,7 @@ from vurm import resources, logging
 
 
 
-class LocalNode(protocol.ProcessProtocol, object):
+class LocalNode(object):
     """
     A class implementing the ``INode`` interface which runs a ``slurmd``
     process locally using SLURM's multiple daemons support.
@@ -28,10 +28,8 @@ class LocalNode(protocol.ProcessProtocol, object):
 
     implements(resources.INode)
 
-    WAITING, STARTED, TERMINATING, STOPPED = range(4)
 
-
-    def __init__(self, slurmd, port, reactor):
+    def __init__(self, nodeName, slurmd, port, reactor):
         """
         Creates a new nodes which spawns a slurm daemon using the command
         contained in the ``slurmd`` parameter on the given port.
@@ -39,36 +37,16 @@ class LocalNode(protocol.ProcessProtocol, object):
         The ``reactor`` parameter shall be a valid Twisted reactor instance and
         will be used to spawn the process.
         """
-        self._nodeName = None
+        self.nodeName = nodeName
         self.port = port
         self.hostname = 'localhost'
 
-        self.log = logging.Logger(__name__)
+        self.log = logging.Logger(__name__, system=self.nodeName)
         self.slurmd = slurmd
         self.reactor = reactor
         self.started = defer.Deferred()
         self.stopped = defer.Deferred()
-        self.status = LocalNode.WAITING
-        self.protocol = LocalNode.SlurmdProtocol(self)
-
-
-    @property
-    def nodeName(self):
-        """
-        Getter for the nodeName attribute.
-        """
-        return self._nodeName
-
-
-    @nodeName.setter
-    def nodeName(self, value):  # pylint: disable-msg=E0102
-        """
-        Updates the logger for this node to use the nodeName attribute as the
-        ``system`` value for log events.
-        """
-
-        self.log.config['system'] = value
-        self._nodeName = value
+        self.process = LocalNode.SlurmdProtocol(self)
 
 
     def isRunning(self):
@@ -77,7 +55,7 @@ class LocalNode(protocol.ProcessProtocol, object):
         spawned and not yet terminated.
         """
 
-        return self.status == LocalNode.STARTED
+        return self.process.status == LocalNode.SlurmdProtocol.STARTED
 
 
     def terminate(self):
@@ -90,12 +68,12 @@ class LocalNode(protocol.ProcessProtocol, object):
         the process exits.
         """
 
-        if self.status != LocalNode.STARTED:
+        if self.process.status != LocalNode.SlurmdProtocol.STARTED:
             raise RuntimeError('Can only terminate a node in the RUNNING ' \
                     'status')
 
-        self.status = LocalNode.TERMINATING
-        self.protocol.transport.signalProcess('KILL')
+        self.process.status = LocalNode.SlurmdProtocol.TERMINATING
+        self.process.transport.signalProcess('KILL')
 
         return self.stopped
 
@@ -106,12 +84,12 @@ class LocalNode(protocol.ProcessProtocol, object):
         as soon as the process was launched.
         """
 
-        if self.status != LocalNode.WAITING:
+        if self.process.status != LocalNode.SlurmdProtocol.WAITING:
             raise RuntimeError('Can only spawn a node in the WAITING status')
 
         self.log.debug('Spawning new slurmd process')
 
-        self.status = LocalNode.STARTED
+        self.process.status = LocalNode.SlurmdProtocol.STARTED
 
         formatArgs = {
             'nodeName': self.nodeName,
@@ -120,7 +98,7 @@ class LocalNode(protocol.ProcessProtocol, object):
         }
 
         args = ['sh', '-c', self.slurmd.format(**formatArgs)]
-        self.reactor.spawnProcess(self.protocol, 'sh', args)
+        self.reactor.spawnProcess(self.process, 'sh', args)
         return self.started
 
 
@@ -153,11 +131,15 @@ class LocalNode(protocol.ProcessProtocol, object):
         Process protocol to handle the INode lifecycle of the bound process.
         """
 
+        WAITING, STARTED, TERMINATING, STOPPED = range(4)
+
+
         def __init__(self, node):
             """
             Creates a new instance bound to the given ``LocalNode`` isntance.
             """
             self.node = node
+            self.status = LocalNode.SlurmdProtocol.WAITING
 
         def connectionMade(self):
             """
@@ -192,13 +174,13 @@ class LocalNode(protocol.ProcessProtocol, object):
             ``TERMINATING``, fires the ``stopped`` callback on the bound node
             instance, else fire the ``stopped`` errback.
             """
-            if self.node.status == LocalNode.TERMINATING:
+            if self.status == LocalNode.SlurmdProtocol.TERMINATING:
                 self.node.log.debug('Process exited normally ({0!r})', reason)
-                self.node.status = LocalNode.STOPPED
+                self.status = LocalNode.SlurmdProtocol.STOPPED
                 self.node.stopped.callback(self.node)
             else:
                 self.node.log.warn('Process quit unexpectedly ({0!r})', reason)
-                self.node.status = LocalNode.STOPPED
+                self.status = LocalNode.SlurmdProtocol.STOPPED
                 self.node.stopped.errback(reason)
 
 
@@ -242,7 +224,7 @@ class Provisioner(object):
         return Provisioner.__currentPort
 
 
-    def getNodes(self, count):
+    def getNodes(self, count, names, **kwargs):
         """
         Returns ``count`` deferreds with their callback already called with a
         correctly configured ``LocalNode`` instance ready to be spawned.
@@ -256,7 +238,8 @@ class Provisioner(object):
         slurmd = self.config.get('multilocal', 'slurmd')
 
         for _ in range(count):
-            node = LocalNode(slurmd, self.getNextPort(), self.reactor)
+            node = LocalNode(next(names), slurmd, self.getNextPort(),
+                    self.reactor)
             nodes.append(defer.succeed(node))
 
         return nodes
