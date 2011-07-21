@@ -20,3 +20,7 @@ class DestroyVirtualCluster(amp.Command):
     arguments = [
         ('clusterName', amp.String()),
     ]
+
+
+class DestroyAllVirtualClusters(amp.Command):
+    pass

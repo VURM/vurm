@@ -21,12 +21,15 @@ class VurmControllerProtocol(amp.AMP):
         return d.addCallback(lambda cluster: {'clusterName': cluster.name})
 
 
+    @commands.DestroyAllVirtualClusters.responder
+    def destroyAllVirtualClusters(self):
+        d = self.instance.destroyAllVirtualClusters()
+        return d.addCallback(lambda _: {})
+
+
     @commands.DestroyVirtualCluster.responder
     def destroyVirtualCluster(self, clusterName):
-        if clusterName == 'all':
-            d = self.instance.destroyAllVirtualClusters()
-        else:
-            d = self.instance.destroyVirtualCluster(clusterName)
+        d = self.instance.destroyVirtualCluster(clusterName)
         return d.addCallback(lambda _: {})
 
 

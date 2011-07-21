@@ -4,10 +4,12 @@ Runs the vurm controller daemon.
 
 
 
+import argparse
 import os
 import sys
 
 from twisted.internet import reactor, endpoints
+from twisted.python import filepath
 
 from vurm import logging, settings, controller, spread
 #from vurm.provisioners import multilocal
@@ -22,13 +24,14 @@ def main():
     TODO: Implement an argument parser
     """
 
-    # TODO: for testing only, remove the following line
-    settings.DEFAULT_FILES.append(os.path.join(os.path.dirname(
-            os.path.dirname(os.path.dirname(__file__))), 'tests',
-            'config.ini'))
+    parser = argparse.ArgumentParser(description='VURM libvirt helper daemon.')
+    parser.add_argument('-c', '--config', type=filepath.FilePath, 
+            # action='append', 
+            help='Configuration file')
+    args = parser.parse_args()
 
     # Read configuration file
-    config = settings.loadConfig()
+    config = settings.loadConfig(args.config)
 
     debug = config.getboolean('vurm', 'debug')
 

@@ -4,12 +4,14 @@ Creates a new virtual cluster and feeds it to SLURM.
 
 
 
+import argparse
 import sys
 
 from twisted.protocols import amp
 from twisted.internet import reactor, endpoints, protocol
+from twisted.python import filepath
 
-from vurm import commands
+from vurm import commands, settings
 
 
 
@@ -20,15 +22,26 @@ def main():
     TODO: Implement an argument parser
     """
 
+    parser = argparse.ArgumentParser(description='VURM libvirt helper daemon.')
+    parser.add_argument('-c', '--config', type=filepath.FilePath, 
+            # action='append', 
+            help='Configuration file')
+    parser.add_argument('minsize', type=int, help='Minimum acceptable virtual cluster size', nargs='?', default=0)
+    parser.add_argument('size', type=int, help='Desired virtual cluster size')
+    args = parser.parse_args()
+
+    # Read configuration file
+    config = settings.loadConfig(args.config)
+
     factory = protocol.ClientFactory()
     factory.protocol = amp.AMP
 
     # Create a new endpoint
-    # TODO: Load this from the configuration
-    endpoint = endpoints.TCP4ClientEndpoint(reactor, 'localhost', 8789)
+    endpoint = endpoints.clientFromString(reactor,
+            config.get('vurm-client', 'endpoint'))
     d = endpoint.connect(factory)
 
-    def gotController(controller, numNodes, minNumNodes=None):
+    def gotController(controller, numNodes, minNumNodes):
         """
         Called with the remote controller reference as first argument.
 
@@ -37,11 +50,11 @@ def main():
         """
         kwargs = {'size': numNodes}
 
-        if minNumNodes:
+        if minNumNodes > 0:
             kwargs['minSize'] = minNumNodes
 
         return controller.callRemote(commands.CreateVirtualCluster, **kwargs)
-    d.addCallback(gotController, int(sys.argv[1]))
+    d.addCallback(gotController, args.size, args.minsize)
 
     def gotResult(result):
         """

@@ -123,6 +123,8 @@ class DomainManager(object):
 
         # Make a Copy-On-Write (COW) image from the original one
         original = config.getRootImagePath()
+        original = filepath.FilePath(self.config.get('vurmd-libvirt',
+                'imagedir')).child(original.basename())
         copy = filepath.FilePath(self.config.get('vurmd-libvirt', 'clonedir'))
         copy = copy.child('{0}.qcow2'.format(nodeName))
 
